@@ -3,9 +3,9 @@ import Link from "next/link";
 import { Shield, Clock, Lock, Server, ArrowLeft } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy – Snapora",
+  title: "Privacy Policy – FullPagePrint",
   description:
-    "Snapora's privacy policy. We do not collect, store, or transmit your screenshots.",
+    "FullPagePrint's privacy policy. We do not collect, store, or transmit your screenshots.",
 };
 
 export default function PrivacyPage() {
@@ -24,7 +24,7 @@ export default function PrivacyPage() {
                 <circle cx="12" cy="12" r="3"/>
               </svg>
             </div>
-            <span className="font-semibold text-base tracking-tight text-white">Snapora</span>
+            <span className="font-semibold text-base tracking-tight text-white">FullPagePrint</span>
           </Link>
           <Link
             href="/"
@@ -65,21 +65,21 @@ export default function PrivacyPage() {
             {
               icon: <Shield className="w-4 h-4 text-[#4F6EF7]" />,
               title: "Screenshot Data & Storage",
-              content: `Screenshots captured by the Snapora browser extension are stored strictly in your browser's isolated local storage (chrome.storage.local). This data never leaves your device and is never transmitted to any external server.
+              content: `Screenshots captured by the FullPagePrint browser extension are stored strictly in your browser's isolated local storage (chrome.storage.local). This data never leaves your device and is never transmitted to any external server.
 
-The web viewer page (snapora.vercel.app/capture/[id]) reads the screenshot data directly from the extension on your machine via a secure browser postMessage API — no network request transmits your image content.`,
+The web viewer page (fullpageprint.vercel.app/capture/[id]) reads the screenshot data directly from the extension on your machine via a secure browser postMessage API — no network request transmits your image content.`,
             },
             {
               icon: <Clock className="w-4 h-4 text-[#4F6EF7]" />,
               title: "Data Retention & Automatic Expiration",
-              content: `Screenshot data stored locally by Snapora has an automatic Time-To-Live (TTL) of 10 minutes. After this window, the capture record is automatically purged from your browser's local storage.
+              content: `Screenshot data stored locally by FullPagePrint has an automatic Time-To-Live (TTL) of 10 minutes. After this window, the capture record is automatically purged from your browser's local storage.
 
 You can also purge extension data at any time by clearing your extension storage or removing the extension from Chrome.`,
             },
             {
               icon: <Lock className="w-4 h-4 text-[#4F6EF7]" />,
               title: "Extension Permissions",
-              content: `The Snapora extension requests only the minimum permissions required to perform its utility functions:
+              content: `The FullPagePrint extension requests only the minimum permissions required to perform its utility functions:
 
 • activeTab – To capture the viewport of the tab you explicitly trigger
 • scripting – To display the drag-to-select box and calculate scroll positions for full-page captures
@@ -88,12 +88,12 @@ You can also purge extension data at any time by clearing your extension storage
 • downloads – To save the file directly to your local Downloads folder
 • offscreen – Required by Chrome Manifest V3 to perform system clipboard writes and canvas operations
 
-Snapora never requests broad permissions to read browsing history or personal data.`,
+FullPagePrint never requests broad permissions to read browsing history or personal data.`,
             },
             {
               icon: <Server className="w-4 h-4 text-[#4F6EF7]" />,
               title: "No Backend Processing",
-              content: `Snapora does not operate an image processing backend. The capture ID in the URL is purely a local client-side key for referencing data already stored in your browser's local sandbox.`,
+              content: `FullPagePrint does not operate an image processing backend. The capture ID in the URL is purely a local client-side key for referencing data already stored in your browser's local sandbox.`,
             },
           ].map(({ icon, title, content }) => (
             <section key={title} className="border-t border-[#27272A] pt-6">
@@ -111,7 +111,7 @@ Snapora never requests broad permissions to read browsing history or personal da
 
       <footer className="border-t border-[#27272A] py-6 px-6 text-center">
         <p className="text-xs text-[#71717A]">
-          © {new Date().getFullYear()} Snapora. All rights reserved. ·{" "}
+          © {new Date().getFullYear()} FullPagePrint. All rights reserved. ·{" "}
           <Link href="/" className="text-[#FAFAF9] hover:underline">
             Home
           </Link>

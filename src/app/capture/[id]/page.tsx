@@ -186,7 +186,7 @@ export default function CapturePage() {
                 <circle cx="12" cy="12" r="3"/>
               </svg>
             </div>
-            <span className="font-semibold text-base tracking-tight text-white">Snapora</span>
+            <span className="font-semibold text-base tracking-tight text-white">FullPagePrint</span>
           </Link>
           {state.status === "loaded" && (
             <div className="flex items-center gap-2 text-xs text-[#A1A1AA]">
@@ -215,7 +215,7 @@ export default function CapturePage() {
             <div>
               <h2 className="text-xl font-semibold text-white mb-2">Extension not detected</h2>
               <p className="text-[#A1A1AA] text-sm max-w-md">
-                The Snapora Chrome extension needs to be installed and enabled to view screenshots
+                The FullPagePrint Chrome extension needs to be installed and enabled to view screenshots
                 here. If you already have it installed, try capturing a new screenshot.
               </p>
             </div>
@@ -223,7 +223,7 @@ export default function CapturePage() {
               href="/#shortcuts"
               className="bg-[#4F6EF7] hover:bg-[#3E5DE5] text-white px-5 py-2.5 rounded-lg font-medium text-sm transition-colors"
             >
-              Get Snapora Extension
+              Get FullPagePrint Extension
             </Link>
           </div>
         )}
@@ -366,7 +366,7 @@ export default function CapturePage() {
       {/* Footer */}
       <footer className="border-t border-[#27272A] py-5 px-6 text-center">
         <p className="text-xs text-[#71717A]">
-          Snapora stores screenshots temporarily in your local browser sandbox.{" "}
+          FullPagePrint stores screenshots temporarily in your local browser sandbox.{" "}
           <Link href="/privacy" className="text-[#A1A1AA] hover:text-white underline underline-offset-2">
             Privacy Policy
           </Link>

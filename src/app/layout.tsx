@@ -5,22 +5,22 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://snapora.vercel.app"),
-  title: "Snapora — Capture Anything, Instantly",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://fullpageprint.vercel.app"),
+  title: "FullPagePrint — Capture Anything, Instantly",
   description:
     "Fast browser screenshots. Capture visible screens, full webpages, or selected areas with a shortcut. Copy and download instantly.",
-  keywords: ["screenshot", "browser capture", "chrome extension", "full page screenshot", "screen capture utility", "snapora"],
-  authors: [{ name: "Snapora" }],
+  keywords: ["screenshot", "browser capture", "chrome extension", "full page screenshot", "screen capture utility", "fullpageprint"],
+  authors: [{ name: "FullPagePrint" }],
   openGraph: {
-    title: "Snapora — Capture Anything, Instantly",
+    title: "FullPagePrint — Capture Anything, Instantly",
     description: "Fast browser screenshots. Capture visible screens, full webpages, or selected areas with a shortcut. Copy and download instantly.",
-    url: "https://snapora.vercel.app",
-    siteName: "Snapora",
+    url: "https://fullpageprint.vercel.app",
+    siteName: "FullPagePrint",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Snapora — Capture Anything, Instantly",
+    title: "FullPagePrint — Capture Anything, Instantly",
     description: "Fast browser screenshots. Capture visible screens, full webpages, or selected areas with a shortcut. Copy and download instantly.",
   },
 };

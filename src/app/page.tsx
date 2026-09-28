@@ -38,10 +38,10 @@ export default function HomePage() {
       <div className="border-b border-[#27272A] bg-[#141417] py-2 px-4 text-center text-xs text-[#A1A1AA]">
         <span>Web App deployed at </span>
         <a
-          href="https://snapora.vercel.app"
+          href="https://fullpageprint.vercel.app"
           className="text-[#FAFAF9] font-mono hover:underline inline-flex items-center gap-1"
         >
-          snapora.vercel.app
+          fullpageprint.vercel.app
           <ExternalLink className="w-3 h-3 text-[#71717A]" />
         </a>
       </div>
@@ -69,7 +69,7 @@ export default function HomePage() {
                 <circle cx="12" cy="12" r="3" />
               </svg>
             </div>
-            <span className="font-semibold text-lg tracking-tight text-white">Snapora</span>
+            <span className="font-semibold text-lg tracking-tight text-white">FullPagePrint</span>
           </Link>
 
           {/* Desktop Nav */}
@@ -239,7 +239,7 @@ export default function HomePage() {
                   </div>
                   <div className="hidden sm:flex items-center gap-1.5 ml-3 bg-[#18181B] border border-[#27272A] px-3 py-1 rounded text-[11px] font-mono text-[#71717A]">
                     <span className="text-[#4F6EF7]">https://</span>
-                    <span>docs.snapora.app/overview</span>
+                    <span>docs.fullpageprint.app/overview</span>
                   </div>
                 </div>
 
@@ -247,7 +247,7 @@ export default function HomePage() {
                 <div className="flex items-center gap-2 text-xs text-[#71717A]">
                   <span className="text-[11px] font-mono text-[#A1A1AA]">100%</span>
                   <div className="w-4 h-4 rounded bg-[#27272A] flex items-center justify-center text-[10px] text-white">
-                    S
+                    F
                   </div>
                 </div>
               </div>
@@ -316,7 +316,7 @@ export default function HomePage() {
                   </div>
                   <div className="text-xs">
                     <span className="font-medium text-white">Copied & Downloaded</span>
-                    <span className="text-[10px] text-[#71717A] block">snapora-2026-09-28.png</span>
+                    <span className="text-[10px] text-[#71717A] block">fullpageprint-2026-09-28.png</span>
                   </div>
                 </div>
               </div>
@@ -432,7 +432,7 @@ export default function HomePage() {
             {/* Step 2 */}
             <div className="flex flex-col items-start p-6 bg-[#18181B] border border-[#27272A] rounded-xl">
               <span className="text-2xl font-mono font-semibold text-[#FAFAF9] mb-3">02</span>
-              <h3 className="text-base font-semibold text-white mb-1.5">Snapora captures</h3>
+              <h3 className="text-base font-semibold text-white mb-1.5">FullPagePrint captures</h3>
               <p className="text-sm text-[#A1A1AA] leading-relaxed">
                 The screenshot is processed instantly with native pixel density and clean rendering.
               </p>
@@ -444,7 +444,7 @@ export default function HomePage() {
               <h3 className="text-base font-semibold text-white mb-1.5">Copy & download</h3>
               <p className="text-sm text-[#A1A1AA] leading-relaxed">
                 The image is automatically copied to your clipboard, saved locally, and opened in
-                Snapora.
+                FullPagePrint.
               </p>
             </div>
           </div>
@@ -523,10 +523,10 @@ export default function HomePage() {
               Viewer Experience
             </span>
             <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight mb-2">
-              Snapora Preview
+              FullPagePrint Preview
             </h2>
             <p className="text-sm text-[#A1A1AA]">
-              Every capture opens cleanly in the Snapora web app with one-click copy and download.
+              Every capture opens cleanly in the FullPagePrint web app with one-click copy and download.
             </p>
           </div>
 
@@ -541,7 +541,7 @@ export default function HomePage() {
                   <span className="w-2.5 h-2.5 rounded-full bg-[#27272A]" />
                 </div>
                 <span className="text-xs font-mono text-[#A1A1AA] ml-2">
-                  snapora-capture-visible.png
+                  fullpageprint-capture-visible.png
                 </span>
               </div>
               <span className="text-[11px] text-[#71717A] bg-[#18181B] px-2.5 py-1 rounded border border-[#27272A]">
@@ -555,7 +555,7 @@ export default function HomePage() {
                 <div className="flex items-center justify-between pb-4 border-b border-[#27272A] mb-4">
                   <div className="flex items-center gap-2.5">
                     <div className="w-6 h-6 rounded bg-[#4F6EF7]/20 border border-[#4F6EF7]/40 flex items-center justify-center text-[10px] text-white font-mono">
-                      SP
+                      FP
                     </div>
                     <span className="text-xs font-medium text-white">
                       Application Performance Metrics
@@ -652,7 +652,7 @@ export default function HomePage() {
             Your screenshots stay yours.
           </h2>
           <p className="text-sm sm:text-base text-[#A1A1AA] leading-relaxed mb-6">
-            Screenshots may contain sensitive information. Snapora is designed to minimize
+            Screenshots may contain sensitive information. FullPagePrint is designed to minimize
             unnecessary storage and processing. Temporary captures expire automatically according to
             the application&apos;s retention policy.
           </p>
@@ -675,13 +675,13 @@ export default function HomePage() {
             Ready to capture faster?
           </h2>
           <p className="text-sm sm:text-base text-[#A1A1AA] leading-relaxed mb-8">
-            Install Snapora and make screenshots a keyboard shortcut away.
+            Install FullPagePrint and make screenshots a keyboard shortcut away.
           </p>
           <button
             onClick={() => setInstallModalOpen(true)}
             className="bg-[#FAFAF9] hover:bg-[#E4E4E7] text-[#111111] px-6 py-3 rounded-lg font-medium text-sm transition-colors shadow-sm inline-flex items-center gap-2"
           >
-            <span>Get Snapora</span>
+            <span>Get FullPagePrint</span>
             <ArrowRight className="w-4 h-4 text-[#111111]" />
           </button>
         </div>
@@ -710,7 +710,7 @@ export default function HomePage() {
                   <circle cx="12" cy="12" r="3" />
                 </svg>
               </div>
-              <span className="font-semibold text-sm text-white">Snapora</span>
+              <span className="font-semibold text-sm text-white">FullPagePrint</span>
             </div>
             <span className="hidden sm:block text-xs text-[#27272A]">|</span>
             <span className="text-xs text-[#71717A]">Fast screenshot capture for the web.</span>
@@ -726,7 +726,7 @@ export default function HomePage() {
             <Link href="/privacy" className="hover:text-white transition-colors">
               Privacy
             </Link>
-            <span className="text-[#71717A]">© 2026 Snapora</span>
+            <span className="text-[#71717A]">© 2026 FullPagePrint</span>
           </div>
         </div>
       </footer>
@@ -762,9 +762,9 @@ export default function HomePage() {
               </svg>
             </div>
 
-            <h3 className="text-lg font-semibold text-white mb-1.5">Get Snapora Extension</h3>
+            <h3 className="text-lg font-semibold text-white mb-1.5">Get FullPagePrint Extension</h3>
             <p className="text-xs text-[#A1A1AA] leading-relaxed mb-5">
-              Snapora is currently in production development. You can load it immediately via Chrome
+              FullPagePrint is currently in production development. You can load it immediately via Chrome
               Developer Mode.
             </p>
 
