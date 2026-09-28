@@ -763,10 +763,18 @@ export default function HomePage() {
             </div>
 
             <h3 className="text-lg font-semibold text-white mb-1.5">Get FullPagePrint Extension</h3>
-            <p className="text-xs text-[#A1A1AA] leading-relaxed mb-5">
-              FullPagePrint is currently in production development. You can load it immediately via Chrome
-              Developer Mode.
+            <p className="text-xs text-[#A1A1AA] leading-relaxed mb-4">
+              FullPagePrint can be loaded directly into Chrome Developer Mode.
             </p>
+
+            <a
+              href="/fullpageprint-extension.zip"
+              download="fullpageprint-extension.zip"
+              className="w-full bg-[#FAFAF9] hover:bg-[#E4E4E7] text-[#111111] px-4 py-2.5 rounded-lg font-medium text-xs transition-colors flex items-center justify-center gap-2 mb-4 shadow-sm"
+            >
+              <Download className="w-4 h-4 text-[#111111]" />
+              <span>Download Extension (.zip)</span>
+            </a>
 
             <div className="space-y-3 bg-[#141416] border border-[#27272A] rounded-xl p-4 text-xs text-[#A1A1AA] mb-6">
               <div className="flex items-start gap-2.5">
@@ -774,23 +782,24 @@ export default function HomePage() {
                   1
                 </span>
                 <span>
-                  Open <code className="text-white font-mono">chrome://extensions</code> in your
-                  browser.
+                  Unzip the downloaded file (or use the <code className="text-white font-mono">extension/dist</code> folder in the repository).
                 </span>
               </div>
               <div className="flex items-start gap-2.5">
                 <span className="font-mono text-white bg-[#222226] w-5 h-5 rounded flex items-center justify-center flex-shrink-0">
                   2
                 </span>
-                <span>Toggle on Developer Mode in the top right corner.</span>
+                <span>
+                  Open <code className="text-white font-mono">chrome://extensions</code> in your
+                  browser and toggle on <strong>Developer Mode</strong> in the top right corner.
+                </span>
               </div>
               <div className="flex items-start gap-2.5">
                 <span className="font-mono text-white bg-[#222226] w-5 h-5 rounded flex items-center justify-center flex-shrink-0">
                   3
                 </span>
                 <span>
-                  Click <strong className="text-white">Load unpacked</strong> and select the{" "}
-                  <code className="text-white font-mono">extension/dist</code> folder.
+                  Click <strong className="text-white">Load unpacked</strong> and select the unzipped <code className="text-white font-mono">dist</code> folder.
                 </span>
               </div>
             </div>

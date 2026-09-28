@@ -1,0 +1,295 @@
+/* ─── Reset & Base ─────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --border: #2a2d3e;
+  --text: #e8eaf0;
+  --text-muted: #737891;
+  --accent: #4f6ef7;
+  --accent-hover: #3d5ae0;
+  --success: #22c55e;
+  --error: #ef4444;
+  --radius: 8px;
+  --radius-sm: 5px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  min-width: 280px;
+  max-width: 320px;
+}
+
+.popup {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Header ────────────────────────────────────────────────────────────────── */
+.popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.3px;
+}
+
+.logo svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 5px;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.icon-btn:hover, .icon-btn.active {
+  background: var(--border);
+  color: var(--text);
+}
+
+/* ─── Section ────────────────────────────────────────────────────────────────── */
+.section {
+  padding: 12px 16px;
+}
+
+.section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.divider {
+  height: 1px;
+  background: var(--border);
+}
+
+/* ─── Capture Buttons ────────────────────────────────────────────────────────── */
+.capture-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  cursor: pointer;
+  padding: 10px 12px;
+  margin-bottom: 7px;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.capture-btn:last-child { margin-bottom: 0; }
+
+.capture-btn:hover {
+  background: #222638;
+  border-color: var(--accent);
+}
+
+.capture-btn:active {
+  transform: scale(0.98);
+}
+
+.capture-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.capture-btn-icon {
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.capture-btn-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.capture-btn-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.capture-btn-shortcut {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+/* ─── Shortcuts ──────────────────────────────────────────────────────────────── */
+.shortcut-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 10px;
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.shortcut-name {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.shortcut-keys {
+  display: flex;
+  gap: 3px;
+}
+
+kbd {
+  display: inline-block;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 10px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.shortcut-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.text-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+.text-link:hover { text-decoration: underline; }
+
+/* ─── Settings ───────────────────────────────────────────────────────────────── */
+.settings-panel {
+  border-top: 1px solid var(--border);
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.setting-label {
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* Toggle switch */
+.toggle {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  width: 36px;
+  height: 20px;
+  background: var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+.toggle:checked {
+  background: var(--accent);
+}
+.toggle:checked::after {
+  transform: translateX(16px);
+}
+
+.select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 12px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.text-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 12px;
+  padding: 7px 10px;
+  margin-bottom: 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.text-input:focus { border-color: var(--accent); }
+
+.save-btn {
+  width: 100%;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.save-btn:hover { background: var(--accent-hover); }
+
+/* ─── Status Bar ─────────────────────────────────────────────────────────────── */
+.status-bar {
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  border-top: 1px solid var(--border);
+}
+.status-bar[hidden] { display: none; }
+.status-success { color: var(--success); }
+.status-error { color: var(--error); }
+.status-info { color: var(--accent); }
