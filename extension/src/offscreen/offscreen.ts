@@ -12,11 +12,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   (async () => {
     try {
       switch (message.type) {
-        case 'COPY_TO_CLIPBOARD': {
-          const ok = await copyImageToClipboard(message.dataUrl as string);
-          sendResponse({ ok });
-          break;
-        }
         case 'STITCH_CHUNKS': {
           const dataUrl = await stitchChunks(
             message.chunks as string[],
@@ -50,46 +45,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           sendResponse({ ok: false, error: 'Unknown message' });
       }
     } catch (err) {
-      console.error('[Offscreen] Error:', err);
+      console.warn('[Offscreen] Handled error:', err);
       sendResponse({ ok: false, error: String(err) });
     }
   })();
   return true;
 });
-
-// ─── Clipboard ────────────────────────────────────────────────────────────────
-
-async function copyImageToClipboard(dataUrl: string): Promise<boolean> {
-  try {
-    const pngBlob = await ensurePngBlob(dataUrl);
-    const item = new ClipboardItem({ 'image/png': pngBlob });
-    await navigator.clipboard.write([item]);
-    return true;
-  } catch (err) {
-    console.error('[Offscreen] Clipboard write failed:', err);
-    return false;
-  }
-}
-
-async function ensurePngBlob(dataUrl: string): Promise<Blob> {
-  const [header] = dataUrl.split(',');
-  const mime = header.match(/:(.*?);/)?.[1] ?? 'image/png';
-  if (mime === 'image/png') {
-    return dataUrlToBlob(dataUrl);
-  }
-  const img = await loadImage(dataUrl);
-  const canvas = document.createElement('canvas');
-  canvas.width = img.naturalWidth;
-  canvas.height = img.naturalHeight;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return dataUrlToBlob(dataUrl);
-  ctx.drawImage(img, 0, 0);
-  return new Promise((resolve) => {
-    canvas.toBlob((blob) => {
-      resolve(blob ?? dataUrlToBlob(dataUrl));
-    }, 'image/png');
-  });
-}
 
 async function convertToJpeg(dataUrl: string, quality = 0.92): Promise<string> {
   const img = await loadImage(dataUrl);

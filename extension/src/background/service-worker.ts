@@ -376,11 +376,11 @@ async function pipeline(
     console.error('[SW] Storage set failed:', err);
   }
 
-  // 3. Auto Copy to Clipboard
+  // 3. Auto Copy to Clipboard (executed in the focused active tab context)
   if (settings.autoCopy) {
-    const ok = await copyViaOffscreen(finalDataUrl);
+    const ok = await copyViaActiveTab(tabId, finalDataUrl);
     if (!ok) {
-      await notifyTab(tabId, 'Screenshot captured ✓ (Clipboard unavailable)', 'info');
+      await notifyTab(tabId, 'Screenshot captured ✓', 'info');
     } else {
       await notifyTab(tabId, 'Screenshot copied to clipboard ✓', 'success');
     }
@@ -434,8 +434,8 @@ async function ensureOffscreen(): Promise<void> {
     try {
       await chrome.offscreen.createDocument({
         url: OFFSCREEN_DOCUMENT_URL,
-        reasons: [chrome.offscreen.Reason.CLIPBOARD, chrome.offscreen.Reason.DOM_SCRAPING],
-        justification: 'Clipboard write and canvas operations for screenshots',
+        reasons: [chrome.offscreen.Reason.DOM_SCRAPING],
+        justification: 'Canvas stitching and cropping operations for screenshots',
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -452,13 +452,47 @@ async function ensureOffscreen(): Promise<void> {
   }
 }
 
-async function copyViaOffscreen(dataUrl: string): Promise<boolean> {
+async function copyViaActiveTab(tabId: number, dataUrl: string): Promise<boolean> {
   try {
-    await ensureOffscreen();
-    const res = await chrome.runtime.sendMessage({ type: 'COPY_TO_CLIPBOARD', dataUrl }) as { ok: boolean };
-    return res?.ok === true;
-  } catch (err) {
-    console.error('[SW] Copy error:', err);
+    const results = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: async (base64Url: string) => {
+        try {
+          const res = await fetch(base64Url);
+          const rawBlob = await res.blob();
+
+          let pngBlob: Blob = rawBlob;
+          if (rawBlob.type !== 'image/png') {
+            const img = new Image();
+            await new Promise<void>((resolve, reject) => {
+              img.onload = () => resolve();
+              img.onerror = () => reject(new Error('Image decode error'));
+              img.src = base64Url;
+            });
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0);
+              pngBlob = await new Promise<Blob>((resolve) => {
+                canvas.toBlob((b) => resolve(b || rawBlob), 'image/png');
+              });
+            }
+          }
+
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': pngBlob })
+          ]);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      args: [dataUrl],
+    });
+    return results?.[0]?.result === true;
+  } catch {
     return false;
   }
 }
