@@ -30,7 +30,7 @@ export type ExtensionMessage =
   | { type: 'SELECTION_READY'; rect: SelectionRect }
   | { type: 'SELECTION_CANCELLED' }
   | { type: 'FULLPAGE_CAPTURE_CHUNK'; dataUrl: string; index: number; totalChunks: number }
-  | { type: 'FULLPAGE_CAPTURE_DONE'; chunks: string[]; width: number; height: number; chunkHeight: number; lastChunkHeight: number }
+  | { type: 'FULLPAGE_CAPTURE_DONE'; chunks: string[]; width: number; height: number; chunkHeight: number; lastChunkHeight: number; yOffsets?: number[] }
   | { type: 'FULLPAGE_CAPTURE_ERROR'; error: string }
   | { type: 'FULLPAGE_PROGRESS'; step: number; total: number }
   | { type: 'COPY_TO_CLIPBOARD'; dataUrl: string }

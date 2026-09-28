@@ -26,7 +26,33 @@ import { generateCaptureId, captureStorageKey, buildFilename } from '../shared/m
 // ─── State ──────────────────────────────────────────────────────────────────
 
 let isCapturing = false;
+let captureTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
 let offscreenCreating: Promise<void> | null = null;
+
+function startCaptureLock(): boolean {
+  if (isCapturing) {
+    console.warn('[Capture] Already capturing, ignoring duplicate request');
+    return false;
+  }
+  isCapturing = true;
+  if (captureTimeoutTimer) clearTimeout(captureTimeoutTimer);
+  // Auto-release after 45 seconds max so user is never locked out
+  captureTimeoutTimer = setTimeout(() => {
+    if (isCapturing) {
+      console.warn('[Capture] Capture lock timed out, auto-releasing');
+      isCapturing = false;
+    }
+  }, 45000);
+  return true;
+}
+
+function releaseCaptureLock(): void {
+  isCapturing = false;
+  if (captureTimeoutTimer) {
+    clearTimeout(captureTimeoutTimer);
+    captureTimeoutTimer = null;
+  }
+}
 
 // ─── Install ─────────────────────────────────────────────────────────────────
 
@@ -44,11 +70,6 @@ setInterval(cleanupExpiredCaptures, 5 * 60 * 1000);
 // ─── Command Listener ────────────────────────────────────────────────────────
 
 chrome.commands.onCommand.addListener(async (command) => {
-  if (isCapturing) {
-    console.warn('[Capture] Already capturing, ignoring:', command);
-    return;
-  }
-
   const tab = await getActiveTab();
   if (!tab?.id || !tab.url) return;
 
@@ -105,12 +126,14 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
           const tab = await getActiveTab();
           if (tab?.id && tab.url) {
             await visibleAndCrop(tab, message.rect);
+          } else {
+            releaseCaptureLock();
           }
           sendResponse({ ok: true });
           break;
         }
         case 'SELECTION_CANCELLED': {
-          isCapturing = false;
+          releaseCaptureLock();
           sendResponse({ ok: true });
           break;
         }
@@ -118,11 +141,13 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         // ── Full page chunk capture request from content script ──────────────
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         case 'CAPTURE_VIEWPORT_CHUNK' as any: {
-          // Content script asks us to capture the current viewport
-          const tabId = sender.tab?.id;
-          if (!tabId) { sendResponse({ error: 'No tab' }); break; }
+          const windowId = sender.tab?.windowId;
+          if (windowId === undefined) {
+            sendResponse({ error: 'No active tab window' });
+            break;
+          }
           try {
-            const dataUrl = await chrome.tabs.captureVisibleTab(sender.tab!.windowId, { format: 'png' });
+            const dataUrl = await captureVisibleTabWithRetry(windowId, { format: 'png' });
             sendResponse({ dataUrl });
           } catch (err) {
             sendResponse({ error: String(err) });
@@ -133,13 +158,19 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         // ── Full page capture completed (content script sends all chunks) ─────
         case 'FULLPAGE_CAPTURE_DONE': {
           const tabId = sender.tab?.id;
-          if (tabId) await finalizeFullPage(tabId, message);
+          if (tabId) {
+            await finalizeFullPage(tabId, message as Extract<ExtensionMessage, { type: 'FULLPAGE_CAPTURE_DONE' }> & { yOffsets?: number[] });
+          } else {
+            releaseCaptureLock();
+          }
           sendResponse({ ok: true });
           break;
         }
         case 'FULLPAGE_CAPTURE_ERROR': {
-          isCapturing = false;
-          if (sender.tab?.id) await notifyTab(sender.tab.id, `Full page capture failed: ${message.error}`, 'error');
+          releaseCaptureLock();
+          if (sender.tab?.id) {
+            await notifyTab(sender.tab.id, `Full page capture failed: ${message.error}`, 'error');
+          }
           sendResponse({ ok: true });
           break;
         }
@@ -170,87 +201,117 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
   return true; // async sendResponse
 });
 
+// ─── Capture Visible Tab with Quota Retry ────────────────────────────────────
+
+async function captureVisibleTabWithRetry(
+  windowId: number,
+  options: chrome.tabs.CaptureVisibleTabOptions = { format: 'png' },
+  maxRetries = 4,
+  initialDelayMs = 500
+): Promise<string> {
+  let attempt = 0;
+  while (attempt <= maxRetries) {
+    try {
+      return await chrome.tabs.captureVisibleTab(windowId, options);
+    } catch (err: unknown) {
+      attempt++;
+      const msg = err instanceof Error ? err.message : String(err);
+      const isQuota = msg.toLowerCase().includes('max_capture_visible_tab') ||
+                      msg.toLowerCase().includes('calls per second') ||
+                      msg.toLowerCase().includes('rate');
+      if (isQuota && attempt <= maxRetries) {
+        console.warn(`[SW] captureVisibleTab quota limit hit, retrying in ${initialDelayMs * attempt}ms (attempt ${attempt}/${maxRetries})`);
+        await new Promise((r) => setTimeout(r, initialDelayMs * attempt));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error('Capture failed after quota retries');
+}
+
 // ─── Capture Initiators ───────────────────────────────────────────────────────
 
 async function initiateVisible(tab: chrome.tabs.Tab): Promise<void> {
-  if (isCapturing) return;
-  isCapturing = true;
+  if (!startCaptureLock()) return;
   const tabId = tab.id!;
   try {
-    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
+    const dataUrl = await captureVisibleTabWithRetry(tab.windowId, { format: 'png' });
     await pipeline(dataUrl, 'visible', tabId, tab.url ?? '');
   } catch (err) {
     await notifyTab(tabId, `Capture failed: ${String(err)}`, 'error');
   } finally {
-    isCapturing = false;
+    releaseCaptureLock();
   }
 }
 
 async function visibleAndCrop(tab: chrome.tabs.Tab, rect: SelectionRect): Promise<void> {
-  // isCapturing is still true from initiateSelection
   const tabId = tab.id!;
   try {
-    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
+    const dataUrl = await captureVisibleTabWithRetry(tab.windowId, { format: 'png' });
     const cropped = await cropViaOffscreen(dataUrl, rect);
     await pipeline(cropped, 'selection', tabId, tab.url ?? '');
   } catch (err) {
     await notifyTab(tabId, `Selection capture failed: ${String(err)}`, 'error');
   } finally {
-    isCapturing = false;
+    releaseCaptureLock();
   }
 }
 
 async function initiateFullPage(tab: chrome.tabs.Tab): Promise<void> {
-  if (isCapturing) return;
-  isCapturing = true;
+  if (!startCaptureLock()) return;
   const tabId = tab.id!;
   try {
     // Inject fullpage content script
     await chrome.scripting.executeScript({ target: { tabId }, files: ['content/fullpage.js'] });
+    // Brief settle to ensure message listener in injected script is ready
+    await new Promise((r) => setTimeout(r, 60));
     // Trigger it
     await chrome.tabs.sendMessage(tabId, { type: 'CAPTURE_FULLPAGE' } as ExtensionMessage);
-    // Pipeline completes when FULLPAGE_CAPTURE_DONE arrives
+    // Pipeline completes when FULLPAGE_CAPTURE_DONE or FULLPAGE_CAPTURE_ERROR arrives
   } catch (err) {
-    isCapturing = false;
+    releaseCaptureLock();
     await notifyTab(tabId, `Full page capture failed: ${String(err)}`, 'error');
   }
 }
 
 async function finalizeFullPage(
   tabId: number,
-  message: Extract<ExtensionMessage, { type: 'FULLPAGE_CAPTURE_DONE' }>
+  message: Extract<ExtensionMessage, { type: 'FULLPAGE_CAPTURE_DONE' }> & { yOffsets?: number[] }
 ): Promise<void> {
   try {
     const settings = await getSettings();
-    const tab = await chrome.tabs.get(tabId);
-    const pageUrl = tab.url ?? '';
+    let pageUrl = '';
+    try {
+      const tab = await chrome.tabs.get(tabId);
+      pageUrl = tab.url ?? '';
+    } catch { /* tab closed or not found */ }
 
     const dataUrl = await stitchViaOffscreen(
       message.chunks,
       message.width,
       message.height,
       message.chunkHeight,
-      message.lastChunkHeight
+      message.lastChunkHeight,
+      message.yOffsets
     );
 
     await pipeline(dataUrl, 'fullpage', tabId, pageUrl, settings);
   } catch (err) {
     await notifyTab(tabId, `Full page stitch failed: ${String(err)}`, 'error');
   } finally {
-    isCapturing = false;
+    releaseCaptureLock();
   }
 }
 
 async function initiateSelection(tab: chrome.tabs.Tab): Promise<void> {
-  if (isCapturing) return;
-  isCapturing = true;
+  if (!startCaptureLock()) return;
   const tabId = tab.id!;
   try {
     await chrome.scripting.executeScript({ target: { tabId }, files: ['content/selection.js'] });
     await chrome.tabs.sendMessage(tabId, { type: 'CAPTURE_SELECTION' } as ExtensionMessage);
-    // Pipeline continues when SELECTION_READY arrives
   } catch (err) {
-    isCapturing = false;
+    releaseCaptureLock();
     await notifyTab(tabId, `Selection failed to start: ${String(err)}`, 'error');
   }
 }
@@ -314,20 +375,34 @@ async function pipeline(
 
 async function ensureOffscreen(): Promise<void> {
   try {
-    // @ts-expect-error – hasDocument not in all type defs
-    if (await chrome.offscreen.hasDocument()) return;
+    if (chrome.offscreen?.hasDocument && await chrome.offscreen.hasDocument()) return;
   } catch { /* not available in older chrome */ }
 
   if (offscreenCreating) {
     await offscreenCreating;
     return;
   }
-  offscreenCreating = chrome.offscreen.createDocument({
-    url: OFFSCREEN_DOCUMENT_URL,
-    reasons: [chrome.offscreen.Reason.CLIPBOARD, chrome.offscreen.Reason.WORKERS],
-    justification: 'Clipboard write and canvas operations for screenshots',
-  });
-  try { await offscreenCreating; } finally { offscreenCreating = null; }
+
+  offscreenCreating = (async () => {
+    try {
+      await chrome.offscreen.createDocument({
+        url: OFFSCREEN_DOCUMENT_URL,
+        reasons: [chrome.offscreen.Reason.CLIPBOARD, chrome.offscreen.Reason.DOM_SCRAPING],
+        justification: 'Clipboard write and canvas operations for screenshots',
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!msg.includes('Only a single offscreen document may be created')) {
+        throw err;
+      }
+    }
+  })();
+
+  try {
+    await offscreenCreating;
+  } finally {
+    offscreenCreating = null;
+  }
 }
 
 async function copyViaOffscreen(dataUrl: string): Promise<boolean> {
@@ -350,11 +425,12 @@ async function cropViaOffscreen(dataUrl: string, rect: SelectionRect): Promise<s
 
 async function stitchViaOffscreen(
   chunks: string[], width: number, height: number,
-  chunkHeight: number, lastChunkHeight: number
+  chunkHeight: number, lastChunkHeight: number,
+  yOffsets?: number[]
 ): Promise<string> {
   await ensureOffscreen();
   const res = await chrome.runtime.sendMessage({
-    type: 'STITCH_CHUNKS', chunks, width, height, chunkHeight, lastChunkHeight,
+    type: 'STITCH_CHUNKS', chunks, width, height, chunkHeight, lastChunkHeight, yOffsets,
   }) as { dataUrl?: string; error?: string };
   if (!res?.dataUrl) throw new Error(res?.error ?? 'Stitch failed');
   return res.dataUrl;
@@ -373,8 +449,10 @@ async function measureViaOffscreen(dataUrl: string): Promise<{ width: number; he
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  return tab;
+  const [tabLastFocused] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (tabLastFocused) return tabLastFocused;
+  const [tabCurrent] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tabCurrent;
 }
 
 async function getSettings(): Promise<Settings> {
@@ -387,9 +465,11 @@ function isRestrictedUrl(url: string): boolean {
     url.startsWith('chrome://') ||
     url.startsWith('chrome-extension://') ||
     url.startsWith('https://chrome.google.com/webstore') ||
+    url.startsWith('https://chromewebstore.google.com') ||
     url.startsWith('edge://') ||
     url.startsWith('about:') ||
     url.startsWith('data:') ||
+    url.startsWith('view-source:') ||
     url === ''
   );
 }

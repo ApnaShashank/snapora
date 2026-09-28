@@ -2,26 +2,25 @@
  * Content Script: Full Page Capture
  *
  * Strategy:
- * 1. Measure total page dimensions
- * 2. Hide fixed/sticky elements temporarily to avoid duplication
- * 3. Scroll in chunks, capture each visible viewport
- * 4. Send chunks + metadata back to service worker for stitching
- * 5. Restore everything
- *
- * Known limitations (browser-imposed):
- * - Lazy-loaded images below the fold may not be rendered
- * - Complex CSS sticky stacking may appear in multiple chunks
- * - Very large pages (>15000px) may hit canvas memory limits
+ * 1. Measure total page dimensions reliably
+ * 2. Force instantaneous scrolling (disable smooth scroll)
+ * 3. Hide fixed/sticky elements temporarily during middle/subsequent chunks
+ * 4. Scroll with adequate settle time (avoiding Chrome 2 calls/sec capture quota)
+ * 5. Send chunks + metadata to background service worker for stitching
+ * 6. Restore page scroll, visibility, and styles
  */
 
 import type { ExtensionMessage } from '../shared/types';
 import { SCROLL_SETTLE_MS, CHUNK_HEIGHT_PX } from '../shared/constants';
 
-// Guard against multiple injections
-const win = window as Window & { __captureFullpageActive?: boolean };
+// Guard against multiple message listeners
+const win = window as Window & {
+  __fullpageListenerReady?: boolean;
+  __fullpageCapturing?: boolean;
+};
 
-if (!win.__captureFullpageActive) {
-  win.__captureFullpageActive = true;
+if (!win.__fullpageListenerReady) {
+  win.__fullpageListenerReady = true;
   chrome.runtime.onMessage.addListener(onMessage);
 }
 
@@ -31,28 +30,45 @@ function onMessage(
   sendResponse: (response: unknown) => void
 ): boolean {
   if (message.type === 'CAPTURE_FULLPAGE') {
-    captureFullPage()
-      .then(() => sendResponse({ ok: true }))
-      .catch((err) => {
-        sendResponse({ ok: false });
-        chrome.runtime.sendMessage({
-          type: 'FULLPAGE_CAPTURE_ERROR',
-          error: String(err),
-        } as ExtensionMessage);
-      });
-    return true;
+    if (win.__fullpageCapturing) {
+      sendResponse({ ok: false, error: 'Capture already in progress' });
+      return false;
+    }
+    // Acknowledge immediately to prevent port closed / timeout errors
+    sendResponse({ ok: true });
+
+    captureFullPage().catch((err) => {
+      chrome.runtime.sendMessage({
+        type: 'FULLPAGE_CAPTURE_ERROR',
+        error: String(err),
+      } as ExtensionMessage);
+    });
+    return false;
   }
   return false;
 }
 
 async function captureFullPage(): Promise<void> {
+  win.__fullpageCapturing = true;
+
   const originalScrollX = window.scrollX;
   const originalScrollY = window.scrollY;
   const originalOverflow = document.documentElement.style.overflow;
 
+  // Temporarily disable smooth scrolling so scrollTo jumps immediately
+  const htmlEl = document.documentElement;
+  const bodyEl = document.body;
+  const prevHtmlScrollBehavior = htmlEl.style.scrollBehavior;
+  const prevBodyScrollBehavior = bodyEl.style.scrollBehavior;
+  htmlEl.style.setProperty('scroll-behavior', 'auto', 'important');
+  bodyEl.style.setProperty('scroll-behavior', 'auto', 'important');
+
   const totalHeight = Math.max(
     document.body.scrollHeight,
-    document.documentElement.scrollHeight
+    document.documentElement.scrollHeight,
+    document.body.offsetHeight,
+    document.documentElement.offsetHeight,
+    document.documentElement.clientHeight
   );
   const viewportHeight = window.innerHeight;
   const viewportWidth = window.innerWidth;
@@ -64,6 +80,7 @@ async function captureFullPage(): Promise<void> {
   await sleep(SCROLL_SETTLE_MS);
 
   const chunks: string[] = [];
+  const yOffsets: number[] = [];
   let scrollY = 0;
   const effectiveChunkHeight = Math.min(viewportHeight, CHUNK_HEIGHT_PX);
   let step = 0;
@@ -84,6 +101,7 @@ async function captureFullPage(): Promise<void> {
       }
 
       chunks.push(dataUrl);
+      yOffsets.push(scrollY);
       step++;
 
       try {
@@ -96,7 +114,7 @@ async function captureFullPage(): Promise<void> {
 
       if (isLastChunk) break;
 
-      scrollY = Math.min(scrollY + effectiveChunkHeight, totalHeight - viewportHeight);
+      scrollY = Math.min(scrollY + effectiveChunkHeight, Math.max(0, totalHeight - viewportHeight));
       window.scrollTo(0, scrollY);
       await sleep(SCROLL_SETTLE_MS);
     }
@@ -104,7 +122,7 @@ async function captureFullPage(): Promise<void> {
     const pixelWidth = viewportWidth * dpr;
     const pixelHeight = totalHeight * dpr;
     const chunkHeightPx = effectiveChunkHeight * dpr;
-    const lastChunkHeightPx = ((totalHeight - (chunks.length - 1) * effectiveChunkHeight)) * dpr;
+    const lastChunkHeightPx = (totalHeight - (chunks.length - 1) * effectiveChunkHeight) * dpr;
 
     chrome.runtime.sendMessage({
       type: 'FULLPAGE_CAPTURE_DONE',
@@ -113,12 +131,15 @@ async function captureFullPage(): Promise<void> {
       height: pixelHeight,
       chunkHeight: chunkHeightPx,
       lastChunkHeight: lastChunkHeightPx,
+      yOffsets,
     } as ExtensionMessage);
   } finally {
     setElementsVisibility(fixedElements, 'visible');
     window.scrollTo(originalScrollX, originalScrollY);
+    htmlEl.style.scrollBehavior = prevHtmlScrollBehavior;
+    bodyEl.style.scrollBehavior = prevBodyScrollBehavior;
     document.documentElement.style.overflow = originalOverflow;
-    win.__captureFullpageActive = false;
+    win.__fullpageCapturing = false;
   }
 }
 
@@ -142,17 +163,23 @@ function captureCurrentViewport(): Promise<string> {
 
 function getFixedStickyElements(): HTMLElement[] {
   const result: HTMLElement[] = [];
-  document.querySelectorAll('*').forEach((el) => {
-    const style = window.getComputedStyle(el);
-    if (style.position === 'fixed' || style.position === 'sticky') {
-      result.push(el as HTMLElement);
-    }
-  });
+  try {
+    document.querySelectorAll('*').forEach((el) => {
+      const style = window.getComputedStyle(el);
+      if (style.position === 'fixed' || style.position === 'sticky') {
+        result.push(el as HTMLElement);
+      }
+    });
+  } catch { /* non-critical */ }
   return result;
 }
 
 function setElementsVisibility(elements: HTMLElement[], visibility: 'visible' | 'hidden'): void {
-  elements.forEach((el) => { el.style.visibility = visibility; });
+  elements.forEach((el) => {
+    try {
+      el.style.visibility = visibility;
+    } catch { /* ignore */ }
+  });
 }
 
 function sleep(ms: number): Promise<void> {

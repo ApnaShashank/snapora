@@ -55,10 +55,7 @@
     "offscreen"
   ],
   "host_permissions": [
-    "http://localhost:3000/*",
-    "http://localhost:3001/*",
-    "https://fullpageprint.vercel.app/*",
-    "https://snapora.vercel.app/*"
+    "<all_urls>"
   ],
   "content_scripts": [
     {

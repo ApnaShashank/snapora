@@ -14,7 +14,7 @@ export const WEB_APP_URL_DEV = 'http://localhost:3000';
 export const WEB_APP_URL_PROD = 'https://fullpageprint.vercel.app';
 
 // Scroll stabilisation delay (ms) during full-page capture
-export const SCROLL_SETTLE_MS = 120;
+export const SCROLL_SETTLE_MS = 450;
 
 // Max chunk height during full-page capture (pixels)
 export const CHUNK_HEIGHT_PX = 1200;

@@ -23,7 +23,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             message.width as number,
             message.height as number,
             message.chunkHeight as number,
-            message.lastChunkHeight as number
+            message.lastChunkHeight as number,
+            message.yOffsets as number[] | undefined
           );
           sendResponse({ dataUrl });
           break;
@@ -72,17 +73,37 @@ async function stitchChunks(
   width: number,
   totalHeight: number,
   chunkHeight: number,
-  _lastChunkHeight: number
+  _lastChunkHeight: number,
+  yOffsets?: number[]
 ): Promise<string> {
+  // Prevent canvas dimension crash (safe browser limit is 16384px)
+  const MAX_CANVAS_DIM = 16384;
+  const safeHeight = Math.min(totalHeight, MAX_CANVAS_DIM);
   const canvas = document.createElement('canvas');
   canvas.width = width;
-  canvas.height = totalHeight;
-  const ctx = canvas.getContext('2d')!;
+  canvas.height = safeHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D context creation failed');
 
   for (let i = 0; i < chunks.length; i++) {
     const img = await loadImage(chunks[i]);
-    const yOffset = i * chunkHeight;
-    ctx.drawImage(img, 0, yOffset);
+    let yOffset: number;
+
+    if (chunks.length === 1) {
+      yOffset = 0;
+    } else if (i === chunks.length - 1) {
+      // Last chunk: align with the bottom of canvas so there is no gap or overshoot
+      yOffset = Math.max(0, safeHeight - img.height);
+    } else if (yOffsets && typeof yOffsets[i] === 'number') {
+      // If yOffsets provided, convert scroll offset to physical coordinates
+      const ratio = totalHeight > 0 ? safeHeight / totalHeight : 1;
+      const dpr = img.width > 0 && width > 0 ? img.width / (width / (window.devicePixelRatio || 1)) : 1;
+      yOffset = Math.round(yOffsets[i] * dpr * ratio);
+    } else {
+      yOffset = i * chunkHeight;
+    }
+
+    ctx.drawImage(img, 0, Math.max(0, Math.min(yOffset, safeHeight - 1)));
   }
 
   const dataUrl = canvas.toDataURL('image/png');
