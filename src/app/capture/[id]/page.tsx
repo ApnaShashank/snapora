@@ -90,6 +90,36 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([arr], { type: mime });
 }
 
+async function ensurePngBlob(dataUrl: string): Promise<Blob> {
+  const [header, data] = dataUrl.split(",");
+  const mime = header.match(/:(.*?);/)?.[1] ?? "image/png";
+  if (mime === "image/png") {
+    const bytes = atob(data);
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    return new Blob([arr], { type: "image/png" });
+  }
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        return resolve(dataUrlToBlob(dataUrl));
+      }
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob((blob) => {
+        resolve(blob ?? dataUrlToBlob(dataUrl));
+      }, "image/png");
+    };
+    img.onerror = () => resolve(dataUrlToBlob(dataUrl));
+    img.src = dataUrl;
+  });
+}
+
 export default function CapturePage() {
   const params = useParams();
   const captureId = params?.id as string;
@@ -104,6 +134,8 @@ export default function CapturePage() {
   useEffect(() => {
     if (!captureId) return;
 
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+
     // Listen for bridge message from the extension content script
     const handleMessage = (event: MessageEvent) => {
       if (
@@ -113,36 +145,53 @@ export default function CapturePage() {
       )
         return;
 
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      const { record, error, expired } = event.data;
 
-      const { record, error } = event.data;
-
-      if (error && !record) {
-        setState({ status: "error", message: error });
+      if (record) {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        if (pollInterval) clearInterval(pollInterval);
+        setState({ status: "loaded", record });
         return;
       }
 
-      if (!record) {
+      if (expired) {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        if (pollInterval) clearInterval(pollInterval);
         setState({ status: "expired" });
         return;
       }
 
-      setState({ status: "loaded", record });
+      if (error) {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        if (pollInterval) clearInterval(pollInterval);
+        setState({ status: "error", message: error });
+        return;
+      }
     };
 
     window.addEventListener("message", handleMessage);
 
-    // If no message in 5s → extension not installed
+    // Initial request to bridge script
+    window.postMessage({ source: "capture-webapp", type: "REQUEST_CAPTURE_DATA" }, "*");
+
+    // Staggered polling every 250ms for up to 6 seconds to guarantee handshake
+    pollInterval = setInterval(() => {
+      window.postMessage({ source: "capture-webapp", type: "REQUEST_CAPTURE_DATA" }, "*");
+    }, 250);
+
+    // If no message in 6s → extension not installed / detected
     timeoutRef.current = setTimeout(() => {
+      if (pollInterval) clearInterval(pollInterval);
       setState((s) => {
         if (s.status === "loading") return { status: "no-extension" };
         return s;
       });
-    }, 5000);
+    }, 6000);
 
     return () => {
       window.removeEventListener("message", handleMessage);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (pollInterval) clearInterval(pollInterval);
     };
   }, [captureId]);
 
@@ -150,8 +199,8 @@ export default function CapturePage() {
     if (state.status !== "loaded") return;
     setCopyState("copying");
     try {
-      const blob = dataUrlToBlob(state.record.dataUrl);
-      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      const pngBlob = await ensurePngBlob(state.record.dataUrl);
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
       setCopyState("done");
       setTimeout(() => setCopyState("idle"), 2500);
     } catch (err) {

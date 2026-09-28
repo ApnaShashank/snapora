@@ -51,6 +51,8 @@
     "scripting",
     "tabs",
     "storage",
+    "unlimitedStorage",
+    "clipboardWrite",
     "downloads",
     "offscreen"
   ],

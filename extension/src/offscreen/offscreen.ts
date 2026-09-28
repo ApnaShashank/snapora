@@ -36,6 +36,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           sendResponse({ dataUrl });
           break;
         }
+        case 'CONVERT_TO_JPEG': {
+          const dataUrl = await convertToJpeg(message.dataUrl as string, (message.quality as number) || 0.92);
+          sendResponse({ dataUrl });
+          break;
+        }
         case 'GET_IMAGE_DIMENSIONS': {
           const dims = await getImageDimensions(message.dataUrl as string);
           sendResponse(dims);
@@ -56,14 +61,51 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 async function copyImageToClipboard(dataUrl: string): Promise<boolean> {
   try {
-    const blob = dataUrlToBlob(dataUrl);
-    const item = new ClipboardItem({ [blob.type]: blob });
+    const pngBlob = await ensurePngBlob(dataUrl);
+    const item = new ClipboardItem({ 'image/png': pngBlob });
     await navigator.clipboard.write([item]);
     return true;
   } catch (err) {
     console.error('[Offscreen] Clipboard write failed:', err);
     return false;
   }
+}
+
+async function ensurePngBlob(dataUrl: string): Promise<Blob> {
+  const [header] = dataUrl.split(',');
+  const mime = header.match(/:(.*?);/)?.[1] ?? 'image/png';
+  if (mime === 'image/png') {
+    return dataUrlToBlob(dataUrl);
+  }
+  const img = await loadImage(dataUrl);
+  const canvas = document.createElement('canvas');
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return dataUrlToBlob(dataUrl);
+  ctx.drawImage(img, 0, 0);
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => {
+      resolve(blob ?? dataUrlToBlob(dataUrl));
+    }, 'image/png');
+  });
+}
+
+async function convertToJpeg(dataUrl: string, quality = 0.92): Promise<string> {
+  const img = await loadImage(dataUrl);
+  const canvas = document.createElement('canvas');
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return dataUrl;
+  // Fill white background for transparent pixels in JPEG
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0);
+  const jpegUrl = canvas.toDataURL('image/jpeg', quality);
+  canvas.width = 0;
+  canvas.height = 0;
+  return jpegUrl;
 }
 
 // ─── Image Stitching ──────────────────────────────────────────────────────────

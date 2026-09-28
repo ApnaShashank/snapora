@@ -28,6 +28,7 @@ import { generateCaptureId, captureStorageKey, buildFilename } from '../shared/m
 let isCapturing = false;
 let captureTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
 let offscreenCreating: Promise<void> | null = null;
+const recentCaptures = new Map<string, CaptureRecord>();
 
 function startCaptureLock(): boolean {
   if (isCapturing) {
@@ -177,15 +178,30 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
 
         // ── Web app bridge request ─────────────────────────────────────────────
         case 'GET_CAPTURE': {
-          const key = captureStorageKey(message.id);
+          const id = message.id;
+
+          // 1. Check in-memory map first (instant zero-latency retrieval)
+          if (recentCaptures.has(id)) {
+            const memoryRecord = recentCaptures.get(id)!;
+            if (memoryRecord.expiresAt >= Date.now()) {
+              sendResponse({ record: memoryRecord, expired: false });
+              break;
+            }
+          }
+
+          // 2. Check chrome.storage.local
+          const key = captureStorageKey(id);
           const result = await chrome.storage.local.get(key);
           const record: CaptureRecord | null = result[key] ?? null;
-          // Check TTL
+
           if (record && record.expiresAt < Date.now()) {
             await chrome.storage.local.remove(key);
             sendResponse({ record: null, expired: true });
+          } else if (record) {
+            recentCaptures.set(id, record); // Populate memory cache
+            sendResponse({ record, expired: false });
           } else {
-            sendResponse({ record });
+            sendResponse({ record: null, expired: false });
           }
           break;
         }
@@ -327,25 +343,44 @@ async function pipeline(
 ): Promise<void> {
   if (!settings) settings = await getSettings();
 
-  const { width, height } = await measureViaOffscreen(dataUrl);
+  // Convert to JPEG if user chose JPG format in settings
+  let finalDataUrl = dataUrl;
+  if (settings.format === 'jpg' && !finalDataUrl.startsWith('data:image/jpeg')) {
+    try {
+      finalDataUrl = await convertToJpegViaOffscreen(dataUrl, (settings.quality || 92) / 100);
+    } catch (err) {
+      console.warn('[SW] JPEG conversion failed, using PNG fallback:', err);
+    }
+  }
+
+  const { width, height } = await measureViaOffscreen(finalDataUrl);
   const id = generateCaptureId();
   const filename = buildFilename(mode, pageUrl, settings.includeHostname, settings.format);
 
   const record: CaptureRecord = {
-    id, dataUrl, filename, width, height, mode,
+    id, dataUrl: finalDataUrl, filename, width, height, mode,
     url: pageUrl, timestamp: Date.now(), expiresAt: Date.now() + CAPTURE_TTL_MS,
   };
 
-  await chrome.storage.local.set({ [captureStorageKey(id)]: record });
+  // 1. Keep in memory for instant zero-latency retrieval by web app
+  recentCaptures.set(id, record);
+  if (recentCaptures.size > 25) {
+    const oldestKey = recentCaptures.keys().next().value;
+    if (oldestKey) recentCaptures.delete(oldestKey);
+  }
 
-  // 1. Clipboard
+  // 2. Persist to storage (unlimitedStorage allows large full-page captures)
+  try {
+    await chrome.storage.local.set({ [captureStorageKey(id)]: record });
+  } catch (err) {
+    console.error('[SW] Storage set failed:', err);
+  }
+
+  // 3. Auto Copy to Clipboard
   if (settings.autoCopy) {
-    const ok = await copyViaOffscreen(dataUrl);
+    const ok = await copyViaOffscreen(finalDataUrl);
     if (!ok) {
-      await notifyTab(tabId,
-        'Screenshot captured. Clipboard permission unavailable – file downloaded instead.',
-        'info'
-      );
+      await notifyTab(tabId, 'Screenshot captured ✓ (Clipboard unavailable)', 'info');
     } else {
       await notifyTab(tabId, 'Screenshot copied to clipboard ✓', 'success');
     }
@@ -353,22 +388,34 @@ async function pipeline(
     await notifyTab(tabId, 'Screenshot captured ✓', 'success');
   }
 
-  // 2. Download
+  // 4. Auto Download (strictly respects settings.autoDownload)
   if (settings.autoDownload) {
     try {
       await chrome.downloads.download({
-        url: dataUrl, filename, saveAs: false, conflictAction: 'uniquify',
+        url: finalDataUrl, filename, saveAs: false, conflictAction: 'uniquify',
       });
     } catch (err) {
       console.error('[SW] Download failed:', err);
     }
   }
 
-  // 3. Open web app
+  // 5. Open web app (strictly respects settings.openWebApp)
   if (settings.openWebApp) {
-    const webAppUrl = `${settings.webAppUrl}/capture/${id}`;
+    const cleanUrl = (settings.webAppUrl || DEFAULT_SETTINGS.webAppUrl).replace(/\/+$/, '');
+    const webAppUrl = `${cleanUrl}/capture/${id}`;
     await chrome.tabs.create({ url: webAppUrl, active: true });
   }
+}
+
+async function convertToJpegViaOffscreen(dataUrl: string, quality = 0.92): Promise<string> {
+  await ensureOffscreen();
+  const res = await chrome.runtime.sendMessage({
+    type: 'CONVERT_TO_JPEG',
+    dataUrl,
+    quality,
+  }) as { dataUrl?: string; error?: string };
+  if (!res?.dataUrl) throw new Error(res?.error ?? 'JPEG conversion failed');
+  return res.dataUrl;
 }
 
 // ─── Offscreen Document ───────────────────────────────────────────────────────

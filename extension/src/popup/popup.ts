@@ -57,8 +57,16 @@ btnSettingsToggle.addEventListener('click', () => {
 });
 
 btnSaveSettings.addEventListener('click', () => {
-  saveSettings();
+  saveSettings(true);
 });
+
+// Auto-save immediately on any toggle or input change
+toggleAutoCopy.addEventListener('change', () => saveSettings(false));
+toggleAutoDownload.addEventListener('change', () => saveSettings(false));
+toggleOpenWebapp.addEventListener('change', () => saveSettings(false));
+toggleHostname.addEventListener('change', () => saveSettings(false));
+selectFormat.addEventListener('change', () => saveSettings(false));
+inputWebappUrl.addEventListener('input', () => saveSettings(false));
 
 linkShortcuts.addEventListener('click', (e) => {
   e.preventDefault();
@@ -89,7 +97,7 @@ async function loadSettings(): Promise<void> {
   applySettings(settings);
 }
 
-async function saveSettings(): Promise<void> {
+async function saveSettings(showToast = true): Promise<void> {
   const settings: Settings = {
     autoCopy: toggleAutoCopy.checked,
     autoDownload: toggleAutoDownload.checked,
@@ -100,7 +108,9 @@ async function saveSettings(): Promise<void> {
     webAppUrl: inputWebappUrl.value.trim() || DEFAULT_SETTINGS.webAppUrl,
   };
   await chrome.storage.local.set({ settings });
-  showStatus('Settings saved!', 'success');
+  if (showToast) {
+    showStatus('Settings saved!', 'success');
+  }
 }
 
 function applySettings(settings: Settings): void {
