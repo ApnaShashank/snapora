@@ -1,76 +1,103 @@
 @import "tailwindcss";
 
-/* ─── Light Mode (default) ─────────────────────────────────── */
+/* ─── Light Mode (default palette: Cream, Dark Maroon, Cyan, Crimson) ─── */
 :root, [data-theme="light"], .light {
-  /* Attached Palette Mapping: Teal (#2BB6BD), Cream (#FDE6B4), Crimson (#A81C21), Dark Maroon (#4D0E12) */
-  --bg:             #F5EFE6;
-  --bg-subtle:      #EFE5D6;
-  --surface:        #FFFFFF;
-  --surface-hover:  #FFFDF9;
-  --border:         #4D0E12;
-  --border-strong:  #A81C21;
+  --bg:               #F5EFE6;
+  --bg-subtle:        #EFE5D6;
+  --surface:          #FFFFFF;
+  --surface-hover:    #FFFDF9;
+  --border:           #4D0E12;
+  --border-strong:    #A81C21;
 
-  --accent:         #2BB6BD;
-  --accent-hover:   #219AA1;
-  --accent-light:   #E5F7F8;
-  --accent-ring:    rgba(43, 182, 189, 0.3);
+  --accent:           #2BB6BD;
+  --accent-hover:     #219AA1;
+  --accent-light:     #E5F7F8;
+  --accent-ring:      rgba(43, 182, 189, 0.3);
 
-  --green:          #15803D;
-  --green-light:    #DCFCE7;
-  --green-border:   #4ADE80;
-  --amber:          #A81C21;
-  --amber-light:    #FDE6B4;
-  --amber-border:   #A81C21;
-  --red:            #A81C21;
-  --red-light:      #FDE6B4;
-  --blue:           #2BB6BD;
-  --blue-light:     #E5F7F8;
-  --blue-border:    #2BB6BD;
+  --green:            #15803D;
+  --green-light:      #DCFCE7;
+  --green-border:     #4ADE80;
+  --amber:            #A81C21;
+  --amber-light:      #FDE6B4;
+  --amber-border:     #A81C21;
+  --red:              #A81C21;
+  --red-light:        #FDE6B4;
+  --blue:             #2BB6BD;
+  --blue-light:       #E5F7F8;
+  --blue-border:      #2BB6BD;
 
-  --text:           #2D080A;
-  --text-muted:     #5C2023;
-  --text-subtle:    #8B3A3F;
+  --text:             #2D080A;
+  --text-muted:       #5C2023;
+  --text-subtle:      #8B3A3F;
 
-  --kbd-bg:         #4D0E12;
-  --kbd-border:     #A81C21;
-  --kbd-shadow:     #2A0507;
-  --kbd-text:       #FFFFFF;
+  --icon-bg:          #4D0E12;
+  --icon-border:      #A81C21;
+  --icon-fg:          #2BB6BD;
+
+  --banner-bg:        #4D0E12;
+  --banner-border:    #A81C21;
+  --banner-text:      #FDE6B4;
+
+  --kbd-bg:           #4D0E12;
+  --kbd-border:       #A81C21;
+  --kbd-shadow:       #2A0507;
+  --kbd-text:         #FFFFFF;
+
+  --paper-line:       #A81C21;
+  --paper-badge-bg:   #FFFFFF;
+  --paper-badge-border: #A81C21;
+  --paper-badge-text: #4D0E12;
+  --paper-notch:      #F5EFE6;
 }
 
-/* ─── Dark Mode ────────────────────────────────────────────── */
+/* ─── Dark Mode (Dedicated Inverted Opposite) ─────────────── */
 [data-theme="dark"], .dark {
-  --bg:             #0F1117;
-  --bg-subtle:      #161B27;
-  --surface:        #1A2035;
-  --surface-hover:  #1F2742;
-  --border:         #2A3350;
-  --border-strong:  #374168;
+  --bg:               #160305;
+  --bg-subtle:        #230608;
+  --surface:          #2A0709;
+  --surface-hover:    #360A0D;
+  --border:           #2BB6BD;
+  --border-strong:    #FDE6B4;
 
-  --accent:         #6366F1;
-  --accent-hover:   #818CF8;
-  --accent-light:   rgba(99, 102, 241, 0.12);
-  --accent-ring:    rgba(99, 102, 241, 0.25);
+  --accent:           #2BB6BD;
+  --accent-hover:     #42C4CB;
+  --accent-light:     rgba(43, 182, 189, 0.18);
+  --accent-ring:      rgba(43, 182, 189, 0.4);
 
-  --green:          #22C55E;
-  --green-light:    rgba(34, 197, 94, 0.1);
-  --green-border:   rgba(34, 197, 94, 0.35);
-  --amber:          #F59E0B;
-  --amber-light:    rgba(245, 158, 11, 0.1);
-  --amber-border:   rgba(245, 158, 11, 0.35);
-  --red:            #F87171;
-  --red-light:      rgba(248, 113, 113, 0.1);
-  --blue:           #60A5FA;
-  --blue-light:     rgba(96, 165, 250, 0.1);
-  --blue-border:    rgba(96, 165, 250, 0.35);
+  --green:            #22C55E;
+  --green-light:      rgba(34, 197, 94, 0.18);
+  --green-border:     #22C55E;
+  --amber:            #FDE6B4;
+  --amber-light:      rgba(253, 230, 180, 0.15);
+  --amber-border:     #FDE6B4;
+  --red:              #F87171;
+  --red-light:        rgba(248, 113, 113, 0.15);
+  --blue:             #2BB6BD;
+  --blue-light:       rgba(43, 182, 189, 0.18);
+  --blue-border:      #2BB6BD;
 
-  --text:           #F1F5F9;
-  --text-muted:     #94A3B8;
-  --text-subtle:    #64748B;
+  --text:             #FDE6B4;
+  --text-muted:       #E2C799;
+  --text-subtle:      #2BB6BD;
 
-  --kbd-bg:         #1E2942;
-  --kbd-border:     #374168;
-  --kbd-shadow:     #0F1117;
-  --kbd-text:       #CBD5E1;
+  --icon-bg:          #2BB6BD;
+  --icon-border:      #FDE6B4;
+  --icon-fg:          #160305;
+
+  --banner-bg:        #2BB6BD;
+  --banner-border:    #FDE6B4;
+  --banner-text:      #160305;
+
+  --kbd-bg:           #2D080A;
+  --kbd-border:       #2BB6BD;
+  --kbd-shadow:       #0F0203;
+  --kbd-text:         #2BB6BD;
+
+  --paper-line:       #2BB6BD;
+  --paper-badge-bg:   #2D080A;
+  --paper-badge-border: #2BB6BD;
+  --paper-badge-text: #FDE6B4;
+  --paper-notch:      #160305;
 }
 
 /* ─── Reset & Base ─────────────────────────────────────────── */
@@ -313,19 +340,19 @@ body {
   left: 0;
   right: 0;
   height: 0;
-  border-top: 2px dashed #A81C21;
+  border-top: 2px dashed var(--paper-line);
 }
 
 .paper-cut-badge {
   position: relative;
   z-index: 5;
-  background: #FFFFFF;
-  border: 1.5px dashed #A81C21;
+  background: var(--paper-badge-bg);
+  border: 1.5px dashed var(--paper-badge-border);
   border-radius: 99px;
   padding: 3px 14px;
   font-size: 10px;
   font-weight: 800;
-  color: #4D0E12;
+  color: var(--paper-badge-text);
   letter-spacing: 0.6px;
   text-transform: uppercase;
   box-shadow: 0 2px 6px rgba(0,0,0,0.1);
@@ -339,8 +366,8 @@ body {
   position: absolute;
   width: 18px;
   height: 18px;
-  background: var(--bg);
-  border: 2px solid #4D0E12;
+  background: var(--paper-notch);
+  border: 2px solid var(--border);
   border-radius: 50%;
   z-index: 6;
   top: 50%;
