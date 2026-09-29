@@ -362,52 +362,53 @@ async function pipeline(
     url: pageUrl, timestamp: Date.now(), expiresAt: Date.now() + CAPTURE_TTL_MS,
   };
 
-  // 1. Keep in memory for instant zero-latency retrieval by web app
+  // 1. Ultra-fast in-memory cache for zero-latency retrieval by web app
   recentCaptures.set(id, record);
   if (recentCaptures.size > 25) {
     const oldestKey = recentCaptures.keys().next().value;
     if (oldestKey) recentCaptures.delete(oldestKey);
   }
 
-  // 2. Persist to storage (unlimitedStorage allows large full-page captures)
-  try {
-    await chrome.storage.local.set({ [captureStorageKey(id)]: record });
-  } catch (err) {
-    console.error('[SW] Storage set failed:', err);
-  }
-
-  // 3. Auto Copy to Clipboard (executed in the focused active tab context)
+  // 2. Fire Auto-Copy IMMEDIATELY in active tab before focus changes
   if (settings.autoCopy) {
     const ok = await copyViaActiveTab(tabId, finalDataUrl);
-    if (!ok) {
-      await notifyTab(tabId, 'Screenshot captured ✓', 'info');
+    if (ok) {
+      notifyTab(tabId, 'Screenshot copied to clipboard ✓', 'success').catch(() => {});
     } else {
-      await notifyTab(tabId, 'Screenshot copied to clipboard ✓', 'success');
+      notifyTab(tabId, 'Screenshot captured ✓', 'info').catch(() => {});
     }
   } else {
-    await notifyTab(tabId, 'Screenshot captured ✓', 'success');
+    notifyTab(tabId, 'Screenshot captured ✓', 'success').catch(() => {});
   }
 
-  // 4. Auto Download (strictly respects settings.autoDownload)
+  // 3. Parallelize storage and download operations for speed
+  const asyncTasks: Promise<unknown>[] = [
+    chrome.storage.local.set({ [captureStorageKey(id)]: record }).catch((err) => {
+      console.warn('[SW] Storage set warning:', err);
+    })
+  ];
+
   if (settings.autoDownload) {
-    try {
-      await chrome.downloads.download({
+    asyncTasks.push(
+      chrome.downloads.download({
         url: finalDataUrl, filename, saveAs: false, conflictAction: 'uniquify',
-      });
-    } catch (err) {
-      console.error('[SW] Download failed:', err);
-    }
+      }).catch((err) => {
+        console.warn('[SW] Download warning:', err);
+      })
+    );
   }
 
-  // 5. Open web app (strictly respects settings.openWebApp)
+  // 4. Open web app tab
   if (settings.openWebApp) {
     const cleanUrl = (settings.webAppUrl || DEFAULT_SETTINGS.webAppUrl).replace(/\/+$/, '');
     const webAppUrl = `${cleanUrl}/capture/${id}`;
-    await chrome.tabs.create({ url: webAppUrl, active: true });
+    chrome.tabs.create({ url: webAppUrl, active: true }).catch(() => {});
   }
+
+  await Promise.all(asyncTasks);
 }
 
-async function convertToJpegViaOffscreen(dataUrl: string, quality = 0.92): Promise<string> {
+async function convertToJpegViaOffscreen(dataUrl: string, quality = 0.95): Promise<string> {
   await ensureOffscreen();
   const res = await chrome.runtime.sendMessage({
     type: 'CONVERT_TO_JPEG',
@@ -458,11 +459,22 @@ async function copyViaActiveTab(tabId: number, dataUrl: string): Promise<boolean
       target: { tabId },
       func: async (base64Url: string) => {
         try {
-          const res = await fetch(base64Url);
-          const rawBlob = await res.blob();
+          // Direct fast binary conversion (sub-millisecond)
+          const commaIdx = base64Url.indexOf(',');
+          const base64Data = commaIdx >= 0 ? base64Url.slice(commaIdx + 1) : base64Url;
+          const mimeMatch = base64Url.match(/:(.*?);/);
+          const mime = mimeMatch ? mimeMatch[1] : 'image/png';
 
-          let pngBlob: Blob = rawBlob;
-          if (rawBlob.type !== 'image/png') {
+          const binStr = atob(base64Data);
+          const len = binStr.length;
+          const bytes = new Uint8Array(len);
+          for (let i = 0; i < len; i++) {
+            bytes[i] = binStr.charCodeAt(i);
+          }
+          let pngBlob = new Blob([bytes], { type: mime });
+
+          // If not PNG, convert via fast offscreen canvas
+          if (mime !== 'image/png') {
             const img = new Image();
             await new Promise<void>((resolve, reject) => {
               img.onload = () => resolve();
@@ -474,16 +486,17 @@ async function copyViaActiveTab(tabId: number, dataUrl: string): Promise<boolean
             canvas.height = img.naturalHeight;
             const ctx = canvas.getContext('2d');
             if (ctx) {
+              ctx.imageSmoothingEnabled = true;
+              ctx.imageSmoothingQuality = 'high';
               ctx.drawImage(img, 0, 0);
               pngBlob = await new Promise<Blob>((resolve) => {
-                canvas.toBlob((b) => resolve(b || rawBlob), 'image/png');
+                canvas.toBlob((b) => resolve(b || pngBlob), 'image/png');
               });
             }
           }
 
-          await navigator.clipboard.write([
-            new ClipboardItem({ 'image/png': pngBlob })
-          ]);
+          const item = new ClipboardItem({ 'image/png': pngBlob });
+          await navigator.clipboard.write([item]);
           return true;
         } catch {
           return false;

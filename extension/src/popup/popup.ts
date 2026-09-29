@@ -26,9 +26,20 @@ const toggleHostname = document.getElementById('toggle-hostname') as HTMLInputEl
 const selectFormat = document.getElementById('select-format') as HTMLSelectElement;
 const inputWebappUrl = document.getElementById('input-webapp-url') as HTMLInputElement;
 
+const btnThemeToggle = document.getElementById('btn-theme-toggle') as HTMLButtonElement | null;
+
 // ─── Initialisation ────────────────────────────────────────────────────────
 
 loadSettings();
+
+if (btnThemeToggle) {
+  btnThemeToggle.addEventListener('click', () => {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+    const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', nextTheme);
+    chrome.storage.local.set({ theme: nextTheme });
+  });
+}
 
 // ─── Event Handlers ────────────────────────────────────────────────────────
 
@@ -92,9 +103,13 @@ async function sendCapture(type: ExtensionMessage['type']): Promise<void> {
 // ─── Settings ────────────────────────────────────────────────────────────────
 
 async function loadSettings(): Promise<void> {
-  const result = await chrome.storage.local.get('settings');
+  const result = await chrome.storage.local.get(['settings', 'theme']);
   const settings: Settings = { ...DEFAULT_SETTINGS, ...(result['settings'] ?? {}) };
   applySettings(settings);
+
+  if (result['theme']) {
+    document.documentElement.setAttribute('data-theme', result['theme']);
+  }
 }
 
 async function saveSettings(showToast = true): Promise<void> {

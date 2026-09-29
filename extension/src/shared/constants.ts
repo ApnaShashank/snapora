@@ -13,8 +13,8 @@ export const OFFSCREEN_DOCUMENT_URL = 'offscreen/offscreen.html';
 export const WEB_APP_URL_DEV = 'http://localhost:3000';
 export const WEB_APP_URL_PROD = 'https://fullpageprint.vercel.app';
 
-// Scroll stabilisation delay (ms) during full-page capture
-export const SCROLL_SETTLE_MS = 450;
+// Scroll stabilisation delay (ms) during full-page capture (optimized for speed)
+export const SCROLL_SETTLE_MS = 220;
 
 // Max chunk height during full-page capture (pixels)
 export const CHUNK_HEIGHT_PX = 1200;

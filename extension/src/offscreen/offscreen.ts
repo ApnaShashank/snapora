@@ -87,6 +87,8 @@ async function stitchChunks(
   canvas.height = safeHeight;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D context creation failed');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
 
   for (let i = 0; i < chunks.length; i++) {
     const img = await loadImage(chunks[i]);
@@ -136,6 +138,8 @@ async function cropImage(
   canvas.width = sw;
   canvas.height = sh;
   const ctx = canvas.getContext('2d')!;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
 
   const result = canvas.toDataURL('image/png');

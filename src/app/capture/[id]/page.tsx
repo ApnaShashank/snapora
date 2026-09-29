@@ -1,16 +1,18 @@
 "use client";
 
 /**
- * /capture/[id] page
+ * /capture/[id] page - FullPagePrint Studio
  *
  * This page receives a screenshot from the Chrome extension via:
  * 1. The extension injects content/bridge.js into this page
  * 2. bridge.js reads the capture record from chrome.storage.local
  * 3. bridge.js posts { source: 'capture-extension', type: 'CAPTURE_BRIDGE_DATA', record } to window
- * 4. This page listens for that message and renders the screenshot
+ * 4. This page listens for that message and renders the screenshot in full high-fidelity
  *
- * Fallback: If no extension is installed or the record has expired,
- * shows an appropriate message.
+ * Features:
+ * - Ultra-high image quality inspection (Fit to view, Zoom In / Out, 100% 1:1 view)
+ * - Funky modern aesthetic with dual Light & Dark mode support
+ * - Fast Instant Copy with tactile feedback & Fast Instant Download
  */
 
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -19,15 +21,23 @@ import {
   Camera,
   Copy,
   Download,
-  CheckCircle,
+  CheckCircle2,
   AlertCircle,
   Clock,
   Monitor,
   Layers,
   Crop,
   Loader2,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Sparkles,
+  ArrowLeft,
+  FileImage,
+  ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface CaptureRecord {
   id: string;
@@ -49,20 +59,25 @@ type PageState =
   | { status: "no-extension" }
   | { status: "error"; message: string };
 
-const MODE_ICONS = {
-  visible: <Monitor className="w-3.5 h-3.5" />,
-  fullpage: <Layers className="w-3.5 h-3.5" />,
-  selection: <Crop className="w-3.5 h-3.5" />,
-};
-
-const MODE_LABELS = {
-  visible: "Visible",
-  fullpage: "Full Page",
-  selection: "Selected Area",
+const MODE_CONFIG = {
+  visible: {
+    icon: Monitor,
+    label: "Visible Viewport",
+    colorClass: "bg-emerald-500/10 text-emerald-500 border-emerald-500/30",
+  },
+  fullpage: {
+    icon: Layers,
+    label: "Full Page Capture",
+    colorClass: "bg-violet-500/10 text-violet-500 border-violet-500/30",
+  },
+  selection: {
+    icon: Crop,
+    label: "Area Selection",
+    colorClass: "bg-amber-500/10 text-amber-500 border-amber-500/30",
+  },
 };
 
 function formatFileSize(dataUrl: string): string {
-  // base64 data length → approximate bytes
   const base64 = dataUrl.split(",")[1] ?? "";
   const bytes = Math.round((base64.length * 3) / 4);
   if (bytes < 1024) return `${bytes} B`;
@@ -71,10 +86,7 @@ function formatFileSize(dataUrl: string): string {
 }
 
 function formatTimestamp(ts: number): string {
-  return new Date(ts).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
+  return new Date(ts).toLocaleTimeString(undefined, {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -110,6 +122,8 @@ async function ensurePngBlob(dataUrl: string): Promise<Blob> {
       if (!ctx) {
         return resolve(dataUrlToBlob(dataUrl));
       }
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
       ctx.drawImage(img, 0, 0);
       canvas.toBlob((blob) => {
         resolve(blob ?? dataUrlToBlob(dataUrl));
@@ -129,6 +143,8 @@ export default function CapturePage() {
   );
   const [copyState, setCopyState] = useState<"idle" | "copying" | "done" | "error">("idle");
   const [downloadState, setDownloadState] = useState<"idle" | "done">("idle");
+  const [zoomLevel, setZoomLevel] = useState<number>(100);
+  const [fitMode, setFitMode] = useState<"fit" | "custom">("fit");
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -136,7 +152,6 @@ export default function CapturePage() {
 
     let pollInterval: ReturnType<typeof setInterval> | null = null;
 
-    // Listen for bridge message from the extension content script
     const handleMessage = (event: MessageEvent) => {
       if (
         event.source !== window ||
@@ -174,12 +189,11 @@ export default function CapturePage() {
     // Initial request to bridge script
     window.postMessage({ source: "capture-webapp", type: "REQUEST_CAPTURE_DATA" }, "*");
 
-    // Staggered polling every 250ms for up to 6 seconds to guarantee handshake
+    // Staggered polling every 200ms for up to 6 seconds to guarantee handshake
     pollInterval = setInterval(() => {
       window.postMessage({ source: "capture-webapp", type: "REQUEST_CAPTURE_DATA" }, "*");
-    }, 250);
+    }, 200);
 
-    // If no message in 6s → extension not installed / detected
     timeoutRef.current = setTimeout(() => {
       if (pollInterval) clearInterval(pollInterval);
       setState((s) => {
@@ -220,203 +234,306 @@ export default function CapturePage() {
     setTimeout(() => setDownloadState("idle"), 2500);
   }, [state]);
 
+  const handleZoomIn = () => {
+    setFitMode("custom");
+    setZoomLevel((prev) => Math.min(prev + 25, 250));
+  };
+
+  const handleZoomOut = () => {
+    setFitMode("custom");
+    setZoomLevel((prev) => Math.max(prev - 25, 25));
+  };
+
+  const handleResetZoom = () => {
+    setFitMode("fit");
+    setZoomLevel(100);
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-[#111111] text-[#FAFAF9]">
-      {/* Header */}
-      <header className="border-b border-[#27272A] px-6 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-lg bg-[#18181B] border border-[#27272A] flex items-center justify-center text-[#FAFAF9] group-hover:border-[#4F6EF7]/50 transition-colors">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 8V5a1 1 0 0 1 1-1h3"/>
-                <path d="M16 4h3a1 1 0 0 1 1 1v3"/>
-                <path d="M20 16v3a1 1 0 0 1-1 1h-3"/>
-                <path d="M8 20H5a1 1 0 0 1-1-1v-3"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-            </div>
-            <span className="font-semibold text-base tracking-tight text-white">FullPagePrint</span>
-          </Link>
-          {state.status === "loaded" && (
-            <div className="flex items-center gap-2 text-xs text-[#A1A1AA]">
-              <span>Captured at {formatTimestamp(state.record.timestamp)}</span>
-            </div>
-          )}
-        </div>
-      </header>
-
-      {/* Main */}
-      <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-8">
-        {/* Loading */}
-        {(state.status === "waiting" || state.status === "loading") && (
-          <div className="flex flex-col items-center justify-center h-72 gap-4">
-            <Loader2 className="w-8 h-8 text-[#4F6EF7] animate-spin" />
-            <p className="text-[#A1A1AA] text-sm">Loading screenshot…</p>
-          </div>
-        )}
-
-        {/* No extension */}
-        {state.status === "no-extension" && (
-          <div className="flex flex-col items-center justify-center h-72 gap-4 text-center">
-            <div className="w-14 h-14 bg-[#18181B] border border-[#27272A] rounded-2xl flex items-center justify-center">
-              <Camera className="w-7 h-7 text-[#71717A]" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-white mb-2">Extension not detected</h2>
-              <p className="text-[#A1A1AA] text-sm max-w-md">
-                The FullPagePrint Chrome extension needs to be installed and enabled to view screenshots
-                here. If you already have it installed, try capturing a new screenshot.
-              </p>
-            </div>
+    <div className="min-h-screen flex flex-col bg-[var(--bg)] text-[var(--text)] transition-colors duration-200">
+      {/* Header Studio Navbar */}
+      <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)]/90 backdrop-blur-md px-4 sm:px-6 py-3">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
             <Link
-              href="/#shortcuts"
-              className="bg-[#4F6EF7] hover:bg-[#3E5DE5] text-white px-5 py-2.5 rounded-lg font-medium text-sm transition-colors"
+              href="/"
+              className="flex items-center gap-2 p-1.5 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] bg-[var(--surface-hover)] transition-all group"
+              title="Return to Home"
             >
-              Get FullPagePrint Extension
+              <ArrowLeft className="w-4 h-4 text-[var(--text-muted)] group-hover:text-[var(--text)] transition-colors" />
+            </Link>
+
+            <Link href="/" className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[var(--primary)] to-[var(--accent)] flex items-center justify-center text-white shadow-sm">
+                <Camera className="w-4 h-4" />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-base tracking-tight text-[var(--text)]">
+                  FullPage<span className="gradient-funky-text">Print</span>
+                </span>
+                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30">
+                  <Sparkles className="w-2.5 h-2.5" /> Studio
+                </span>
+              </div>
             </Link>
           </div>
-        )}
 
-        {/* Expired */}
-        {state.status === "expired" && (
-          <div className="flex flex-col items-center justify-center h-72 gap-4 text-center">
-            <div className="w-14 h-14 bg-[#18181B] border border-[#27272A] rounded-2xl flex items-center justify-center">
-              <Clock className="w-7 h-7 text-[#71717A]" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-white mb-2">Screenshot expired</h2>
-              <p className="text-[#A1A1AA] text-sm max-w-md">
-                This screenshot link has expired (screenshots are kept locally for 10 minutes for privacy).
-                Take a new screenshot to view it here.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Error */}
-        {state.status === "error" && (
-          <div className="flex flex-col items-center justify-center h-72 gap-4 text-center">
-            <div className="w-14 h-14 bg-[#18181B] border border-[#27272A] rounded-2xl flex items-center justify-center">
-              <AlertCircle className="w-7 h-7 text-red-500" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-white mb-2">Something went wrong</h2>
-              <p className="text-[#A1A1AA] text-sm max-w-md font-mono">{state.message}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Loaded */}
-        {state.status === "loaded" && (
-          <div className="flex flex-col gap-6">
-            {/* Image preview */}
-            <div className="bg-[#18181B] border border-[#27272A] rounded-2xl overflow-hidden shadow-sm">
-              {/* Preview header */}
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#27272A]">
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#3F3F46]" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#3F3F46]" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#3F3F46]" />
-                  </div>
-                  <span className="text-xs text-[#A1A1AA] ml-2 truncate max-w-xs">
-                    {state.record.url || "Screenshot"}
+          {state.status === "loaded" && (
+            <div className="hidden md:flex items-center gap-2">
+              {(() => {
+                const config = MODE_CONFIG[state.record.mode] || MODE_CONFIG.visible;
+                const IconComponent = config.icon;
+                return (
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${config.colorClass}`}
+                  >
+                    <IconComponent className="w-3.5 h-3.5" />
+                    {config.label}
                   </span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-[#A1A1AA] bg-[#222226] px-2.5 py-1 rounded-md border border-[#27272A]">
-                  {MODE_ICONS[state.record.mode]}
-                  <span>{MODE_LABELS[state.record.mode]}</span>
-                </div>
-              </div>
+                );
+              })()}
 
-              {/* Image */}
-              <div className="relative overflow-auto max-h-[65vh] bg-[#141416]" style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg width='20' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='10' height='10' fill='%2318181B'/%3E%3Crect x='10' y='10' width='10' height='10' fill='%2318181B'/%3E%3Crect x='10' width='10' height='10' fill='%23141416'/%3E%3Crect y='10' width='10' height='10' fill='%23141416'/%3E%3C/svg%3E")`,
-              }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={state.record.dataUrl}
-                  alt="Screenshot preview"
-                  className="max-w-full mx-auto block"
-                  style={{ imageRendering: "auto" }}
-                />
-              </div>
+              <span className="text-xs text-[var(--text-muted)] px-2 py-1 rounded-md bg-[var(--surface-hover)] border border-[var(--border)]">
+                {formatTimestamp(state.record.timestamp)}
+              </span>
             </div>
+          )}
 
-            {/* Actions bar */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#18181B] border border-[#27272A] rounded-xl px-5 py-4">
-              {/* Meta */}
-              <div className="flex items-center gap-4 text-sm text-[#A1A1AA]">
-                <span className="font-medium text-white text-base">
-                  {state.record.width} × {state.record.height}
-                </span>
-                <span>·</span>
-                <span>PNG</span>
-                <span>·</span>
-                <span>{formatFileSize(state.record.dataUrl)}</span>
-                <span>·</span>
-                <span className="text-xs font-mono truncate max-w-[200px]">
-                  {state.record.filename}
-                </span>
-              </div>
-
-              {/* Buttons */}
-              <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {state.status === "loaded" && (
+              <>
                 <button
                   id="btn-copy-image"
                   onClick={handleCopy}
                   disabled={copyState === "copying"}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                    copyState === "done"
-                      ? "bg-green-500/10 text-green-400 border border-green-500/30"
-                      : copyState === "error"
-                      ? "bg-red-500/10 text-red-400 border border-red-500/30"
-                      : "bg-[#222226] hover:bg-[#2A2A2E] text-white border border-[#27272A] hover:border-[#3F3F46]"
+                  className={`btn-funky-secondary text-xs sm:text-sm py-2 px-3 sm:px-4 flex items-center gap-1.5 ${
+                    copyState === "done" ? "border-emerald-500 text-emerald-500" : ""
                   }`}
                 >
                   {copyState === "done" ? (
-                    <CheckCircle className="w-4 h-4 text-green-400" />
+                    <>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      <span>Copied!</span>
+                    </>
                   ) : copyState === "error" ? (
-                    <AlertCircle className="w-4 h-4" />
+                    <>
+                      <AlertCircle className="w-4 h-4 text-red-500" />
+                      <span>Failed</span>
+                    </>
                   ) : copyState === "copying" ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-[var(--accent)]" />
+                      <span>Copying…</span>
+                    </>
                   ) : (
-                    <Copy className="w-4 h-4" />
+                    <>
+                      <Copy className="w-4 h-4" />
+                      <span>Copy Image</span>
+                    </>
                   )}
-                  {copyState === "done"
-                    ? "Copied to clipboard"
-                    : copyState === "error"
-                    ? "Failed"
-                    : "Copy Image"}
                 </button>
 
                 <button
                   id="btn-download-image"
                   onClick={handleDownload}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                    downloadState === "done"
-                      ? "bg-green-500/10 text-green-400 border border-green-500/30"
-                      : "bg-[#4F6EF7] hover:bg-[#3E5DE5] text-white"
-                  }`}
+                  className="btn-funky-primary text-xs sm:text-sm py-2 px-3 sm:px-4 flex items-center gap-1.5"
                 >
                   {downloadState === "done" ? (
-                    <CheckCircle className="w-4 h-4 text-green-400" />
+                    <>
+                      <CheckCircle2 className="w-4 h-4 text-white" />
+                      <span>Downloaded</span>
+                    </>
                   ) : (
-                    <Download className="w-4 h-4" />
+                    <>
+                      <Download className="w-4 h-4 text-white" />
+                      <span>Download</span>
+                    </>
                   )}
-                  {downloadState === "done" ? "Downloaded!" : "Download"}
                 </button>
+              </>
+            )}
+
+            <ThemeToggle />
+          </div>
+        </div>
+      </header>
+
+      {/* Main Studio Viewport */}
+      <main className="flex-1 flex flex-col p-4 sm:p-6 max-w-7xl mx-auto w-full">
+        {/* Waiting / Loading state */}
+        {(state.status === "waiting" || state.status === "loading") && (
+          <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] gap-4">
+            <div className="relative">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[var(--primary)] to-[var(--accent)] flex items-center justify-center text-white shadow-lg animate-pulse">
+                <Camera className="w-8 h-8" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 bg-[var(--surface)] p-1 rounded-full border border-[var(--border)]">
+                <Loader2 className="w-4 h-4 text-[var(--accent)] animate-spin" />
+              </div>
+            </div>
+            <div className="text-center">
+              <h3 className="font-bold text-lg text-[var(--text)]">Loading High-Res Capture…</h3>
+              <p className="text-sm text-[var(--text-muted)] mt-1">
+                Reading lossless pixels from your local extension storage.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Extension Not Detected */}
+        {state.status === "no-extension" && (
+          <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] gap-5 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-[var(--surface-hover)] border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] shadow-inner">
+              <Camera className="w-8 h-8 text-[var(--accent)]" />
+            </div>
+            <div className="max-w-md">
+              <h2 className="text-xl font-bold text-[var(--text)] mb-2">Extension Not Detected</h2>
+              <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+                FullPagePrint requires the Chrome extension to safely render screenshots from your
+                browser sandbox. Please install and load the extension in Chrome.
+              </p>
+            </div>
+            <Link href="/#download-banner" className="btn-funky-primary text-sm py-2.5 px-6">
+              Get Extension (.zip)
+            </Link>
+          </div>
+        )}
+
+        {/* Expired state */}
+        {state.status === "expired" && (
+          <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] gap-5 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500">
+              <Clock className="w-8 h-8" />
+            </div>
+            <div className="max-w-md">
+              <h2 className="text-xl font-bold text-[var(--text)] mb-2">Screenshot Expired</h2>
+              <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+                For complete privacy, screenshots automatically expire after 10 minutes from your
+                local storage. Trigger a fresh capture anytime using keyboard shortcuts!
+              </p>
+            </div>
+            <div className="flex gap-2 items-center justify-center mt-2">
+              <kbd className="kbd-3d text-xs">Ctrl</kbd>
+              <span className="text-xs text-[var(--text-muted)]">+</span>
+              <kbd className="kbd-3d text-xs">Shift</kbd>
+              <span className="text-xs text-[var(--text-muted)]">+</span>
+              <kbd className="kbd-3d text-xs">S</kbd>
+            </div>
+          </div>
+        )}
+
+        {/* Error state */}
+        {state.status === "error" && (
+          <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] gap-4 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <div className="max-w-md">
+              <h2 className="text-xl font-bold text-[var(--text)] mb-2">Capture Error</h2>
+              <p className="text-sm text-[var(--text-muted)] font-mono bg-[var(--surface-hover)] p-3 rounded-lg border border-[var(--border)]">
+                {state.message}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Loaded State: Studio Canvas & Info Bar */}
+        {state.status === "loaded" && (
+          <div className="flex-1 flex flex-col gap-4">
+            {/* Top Workspace Toolbar (Zoom, Fit, URL) */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl px-4 py-2.5 shadow-sm">
+              <div className="flex items-center gap-2 overflow-hidden text-xs text-[var(--text-muted)]">
+                <FileImage className="w-3.5 h-3.5 flex-shrink-0 text-[var(--accent)]" />
+                <span className="truncate max-w-xs sm:max-w-md font-mono" title={state.record.url}>
+                  {state.record.url || "Local capture"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={handleZoomOut}
+                  className="p-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--surface-hover)] text-[var(--text)] transition-colors"
+                  title="Zoom Out"
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+                <span className="text-xs font-mono font-medium px-2 py-1 rounded bg-[var(--surface-hover)] border border-[var(--border)] min-w-[50px] text-center">
+                  {fitMode === "fit" ? "Fit" : `${zoomLevel}%`}
+                </span>
+                <button
+                  onClick={handleZoomIn}
+                  className="p-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--surface-hover)] text-[var(--text)] transition-colors"
+                  title="Zoom In"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={handleResetZoom}
+                  className={`p-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--surface-hover)] text-[var(--text)] transition-colors ${
+                    fitMode === "fit" ? "bg-[var(--accent)]/15 border-[var(--accent)] text-[var(--accent)]" : ""
+                  }`}
+                  title="Fit to Window"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* The Main High-Res Canvas */}
+            <div className="flex-1 min-h-[500px] max-h-[72vh] overflow-auto rounded-2xl border border-[var(--border)] bg-[var(--surface)] relative p-4 flex items-center justify-center shadow-inner pattern-grid">
+              <div
+                className="transition-transform duration-150 origin-top flex items-center justify-center"
+                style={{
+                  width: fitMode === "fit" ? "100%" : "auto",
+                  transform: fitMode === "custom" ? `scale(${zoomLevel / 100})` : "none",
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={state.record.dataUrl}
+                  alt="Captured screenshot high-fidelity"
+                  className="rounded-lg shadow-2xl border border-[var(--border)] block mx-auto max-w-full h-auto object-contain"
+                  style={{
+                    imageRendering: "auto",
+                    maxHeight: fitMode === "fit" ? "68vh" : "none",
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Bottom Inspector Bar */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl px-4 py-3 shadow-sm text-xs text-[var(--text-muted)]">
+              <div className="flex flex-wrap items-center gap-3 font-mono">
+                <span className="font-bold text-sm text-[var(--text)]">
+                  {state.record.width} × {state.record.height}
+                  <span className="text-[10px] font-normal text-[var(--text-muted)] ml-1">px</span>
+                </span>
+                <span>·</span>
+                <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 font-semibold">
+                  PNG 100% Crisp
+                </span>
+                <span>·</span>
+                <span>{formatFileSize(state.record.dataUrl)}</span>
+                <span>·</span>
+                <span className="truncate max-w-[200px]" title={state.record.filename}>
+                  {state.record.filename}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 text-[11px]">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Saved locally in Chrome Sandbox</span>
               </div>
             </div>
           </div>
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-[#27272A] py-5 px-6 text-center">
-        <p className="text-xs text-[#71717A]">
-          FullPagePrint stores screenshots temporarily in your local browser sandbox.{" "}
-          <Link href="/privacy" className="text-[#A1A1AA] hover:text-white underline underline-offset-2">
+      {/* Studio Footer */}
+      <footer className="border-t border-[var(--border)] py-4 px-6 text-center bg-[var(--surface)]">
+        <p className="text-xs text-[var(--text-muted)]">
+          FullPagePrint Studio · Zero server uploads · Pure client-side privacy ·{" "}
+          <Link href="/privacy" className="text-[var(--text)] hover:underline font-medium">
             Privacy Policy
           </Link>
         </p>
