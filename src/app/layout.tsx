@@ -32,7 +32,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={inter.variable} data-theme="light">
-      <body className="antialiased bg-[var(--bg)] text-[var(--text)] min-h-screen transition-colors duration-200 selection:bg-[var(--accent)]/30 selection:text-white">
+      <body className="antialiased bg-(--bg) text-(--text) min-h-screen transition-colors duration-200 selection:bg-(--accent)/30 selection:text-white">
         {children}
       </body>
     </html>

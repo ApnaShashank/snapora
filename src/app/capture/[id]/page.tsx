@@ -250,28 +250,28 @@ export default function CapturePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--bg)] text-[var(--text)] transition-colors duration-200">
+    <div className="min-h-screen flex flex-col bg-(--bg) text-(--text) transition-colors duration-200">
       {/* Header Studio Navbar */}
-      <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)]/90 backdrop-blur-md px-4 sm:px-6 py-3">
+      <header className="sticky top-0 z-40 border-b border-(--border) bg-(--surface)/90 backdrop-blur-md px-4 sm:px-6 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="flex items-center gap-2 p-1.5 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] bg-[var(--surface-hover)] transition-all group"
+              className="flex items-center gap-2 p-1.5 rounded-lg border border-(--border) hover:border-(--accent) bg-(--surface-hover) transition-all group"
               title="Return to Home"
             >
-              <ArrowLeft className="w-4 h-4 text-[var(--text-muted)] group-hover:text-[var(--text)] transition-colors" />
+              <ArrowLeft className="w-4 h-4 text-(--text-muted) group-hover:text-(--text) transition-colors" />
             </Link>
 
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[var(--primary)] to-[var(--accent)] flex items-center justify-center text-white shadow-sm">
+              <div className="w-8 h-8 rounded-xl bg-linear-to-tr from-(--primary) to-(--accent) flex items-center justify-center text-white shadow-sm">
                 <Camera className="w-4 h-4" />
               </div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-base tracking-tight text-[var(--text)]">
+                <span className="font-extrabold text-base tracking-tight text-(--text)">
                   FullPage<span className="gradient-funky-text">Print</span>
                 </span>
-                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30">
+                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-(--accent)/15 text-(--accent) border border-(--accent)/30">
                   <Sparkles className="w-2.5 h-2.5" /> Studio
                 </span>
               </div>
@@ -293,7 +293,7 @@ export default function CapturePage() {
                 );
               })()}
 
-              <span className="text-xs text-[var(--text-muted)] px-2 py-1 rounded-md bg-[var(--surface-hover)] border border-[var(--border)]">
+              <span className="text-xs text-(--text-muted) px-2 py-1 rounded-md bg-(--surface-hover) border border-(--border)">
                 {formatTimestamp(state.record.timestamp)}
               </span>
             </div>
@@ -322,7 +322,7 @@ export default function CapturePage() {
                     </>
                   ) : copyState === "copying" ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin text-[var(--accent)]" />
+                      <Loader2 className="w-4 h-4 animate-spin text-(--accent)" />
                       <span>Copying…</span>
                     </>
                   ) : (
@@ -364,16 +364,16 @@ export default function CapturePage() {
         {(state.status === "waiting" || state.status === "loading") && (
           <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] gap-4">
             <div className="relative">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[var(--primary)] to-[var(--accent)] flex items-center justify-center text-white shadow-lg animate-pulse">
+              <div className="w-16 h-16 rounded-2xl bg-linear-to-tr from-(--primary) to-(--accent) flex items-center justify-center text-white shadow-lg animate-pulse">
                 <Camera className="w-8 h-8" />
               </div>
-              <div className="absolute -bottom-1 -right-1 bg-[var(--surface)] p-1 rounded-full border border-[var(--border)]">
-                <Loader2 className="w-4 h-4 text-[var(--accent)] animate-spin" />
+              <div className="absolute -bottom-1 -right-1 bg-(--surface) p-1 rounded-full border border-(--border)">
+                <Loader2 className="w-4 h-4 text-(--accent) animate-spin" />
               </div>
             </div>
             <div className="text-center">
-              <h3 className="font-bold text-lg text-[var(--text)]">Loading High-Res Capture…</h3>
-              <p className="text-sm text-[var(--text-muted)] mt-1">
+              <h3 className="font-bold text-lg text-(--text)">Loading High-Res Capture…</h3>
+              <p className="text-sm text-(--text-muted) mt-1">
                 Reading lossless pixels from your local extension storage.
               </p>
             </div>
@@ -383,12 +383,12 @@ export default function CapturePage() {
         {/* Extension Not Detected */}
         {state.status === "no-extension" && (
           <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] gap-5 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-[var(--surface-hover)] border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] shadow-inner">
-              <Camera className="w-8 h-8 text-[var(--accent)]" />
+            <div className="w-16 h-16 rounded-2xl bg-(--surface-hover) border border-(--border) flex items-center justify-center text-(--text-muted) shadow-inner">
+              <Camera className="w-8 h-8 text-(--accent)" />
             </div>
             <div className="max-w-md">
-              <h2 className="text-xl font-bold text-[var(--text)] mb-2">Extension Not Detected</h2>
-              <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+              <h2 className="text-xl font-bold text-(--text) mb-2">Extension Not Detected</h2>
+              <p className="text-sm text-(--text-muted) leading-relaxed">
                 FullPagePrint requires the Chrome extension to safely render screenshots from your
                 browser sandbox. Please install and load the extension in Chrome.
               </p>
@@ -406,17 +406,17 @@ export default function CapturePage() {
               <Clock className="w-8 h-8" />
             </div>
             <div className="max-w-md">
-              <h2 className="text-xl font-bold text-[var(--text)] mb-2">Screenshot Expired</h2>
-              <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+              <h2 className="text-xl font-bold text-(--text) mb-2">Screenshot Expired</h2>
+              <p className="text-sm text-(--text-muted) leading-relaxed">
                 For complete privacy, screenshots automatically expire after 10 minutes from your
                 local storage. Trigger a fresh capture anytime using keyboard shortcuts!
               </p>
             </div>
             <div className="flex gap-2 items-center justify-center mt-2">
               <kbd className="kbd-3d text-xs">Ctrl</kbd>
-              <span className="text-xs text-[var(--text-muted)]">+</span>
+              <span className="text-xs text-(--text-muted)">+</span>
               <kbd className="kbd-3d text-xs">Shift</kbd>
-              <span className="text-xs text-[var(--text-muted)]">+</span>
+              <span className="text-xs text-(--text-muted)">+</span>
               <kbd className="kbd-3d text-xs">S</kbd>
             </div>
           </div>
@@ -429,8 +429,8 @@ export default function CapturePage() {
               <AlertCircle className="w-8 h-8" />
             </div>
             <div className="max-w-md">
-              <h2 className="text-xl font-bold text-[var(--text)] mb-2">Capture Error</h2>
-              <p className="text-sm text-[var(--text-muted)] font-mono bg-[var(--surface-hover)] p-3 rounded-lg border border-[var(--border)]">
+              <h2 className="text-xl font-bold text-(--text) mb-2">Capture Error</h2>
+              <p className="text-sm text-(--text-muted) font-mono bg-(--surface-hover) p-3 rounded-lg border border-(--border)">
                 {state.message}
               </p>
             </div>
@@ -441,9 +441,9 @@ export default function CapturePage() {
         {state.status === "loaded" && (
           <div className="flex-1 flex flex-col gap-4">
             {/* Top Workspace Toolbar (Zoom, Fit, URL) */}
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl px-4 py-2.5 shadow-sm">
-              <div className="flex items-center gap-2 overflow-hidden text-xs text-[var(--text-muted)]">
-                <FileImage className="w-3.5 h-3.5 flex-shrink-0 text-[var(--accent)]" />
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-(--surface) border border-(--border) rounded-xl px-4 py-2.5 shadow-sm">
+              <div className="flex items-center gap-2 overflow-hidden text-xs text-(--text-muted)">
+                <FileImage className="w-3.5 h-3.5 shrink-0 text-(--accent)" />
                 <span className="truncate max-w-xs sm:max-w-md font-mono" title={state.record.url}>
                   {state.record.url || "Local capture"}
                 </span>
@@ -452,25 +452,25 @@ export default function CapturePage() {
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={handleZoomOut}
-                  className="p-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--surface-hover)] text-[var(--text)] transition-colors"
+                  className="p-1.5 rounded-lg border border-(--border) hover:bg-(--surface-hover) text-(--text) transition-colors"
                   title="Zoom Out"
                 >
                   <ZoomOut className="w-3.5 h-3.5" />
                 </button>
-                <span className="text-xs font-mono font-medium px-2 py-1 rounded bg-[var(--surface-hover)] border border-[var(--border)] min-w-[50px] text-center">
+                <span className="text-xs font-mono font-medium px-2 py-1 rounded bg-(--surface-hover) border border-(--border) min-w-[50px] text-center">
                   {fitMode === "fit" ? "Fit" : `${zoomLevel}%`}
                 </span>
                 <button
                   onClick={handleZoomIn}
-                  className="p-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--surface-hover)] text-[var(--text)] transition-colors"
+                  className="p-1.5 rounded-lg border border-(--border) hover:bg-(--surface-hover) text-(--text) transition-colors"
                   title="Zoom In"
                 >
                   <ZoomIn className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={handleResetZoom}
-                  className={`p-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--surface-hover)] text-[var(--text)] transition-colors ${
-                    fitMode === "fit" ? "bg-[var(--accent)]/15 border-[var(--accent)] text-[var(--accent)]" : ""
+                  className={`p-1.5 rounded-lg border border-(--border) hover:bg-(--surface-hover) text-(--text) transition-colors ${
+                    fitMode === "fit" ? "bg-(--accent)/15 border-(--accent) text-(--accent)" : ""
                   }`}
                   title="Fit to Window"
                 >
@@ -480,7 +480,7 @@ export default function CapturePage() {
             </div>
 
             {/* The Main High-Res Canvas */}
-            <div className="flex-1 min-h-[500px] max-h-[72vh] overflow-auto rounded-2xl border border-[var(--border)] bg-[var(--surface)] relative p-4 flex items-center justify-center shadow-inner pattern-grid">
+            <div className="flex-1 min-h-[500px] max-h-[72vh] overflow-auto rounded-2xl border border-(--border) bg-(--surface) relative p-4 flex items-center justify-center shadow-inner pattern-grid">
               <div
                 className="transition-transform duration-150 origin-top flex items-center justify-center"
                 style={{
@@ -492,7 +492,7 @@ export default function CapturePage() {
                 <img
                   src={state.record.dataUrl}
                   alt="Captured screenshot high-fidelity"
-                  className="rounded-lg shadow-2xl border border-[var(--border)] block mx-auto max-w-full h-auto object-contain"
+                  className="rounded-lg shadow-2xl border border-(--border) block mx-auto max-w-full h-auto object-contain"
                   style={{
                     imageRendering: "auto",
                     maxHeight: fitMode === "fit" ? "68vh" : "none",
@@ -502,11 +502,11 @@ export default function CapturePage() {
             </div>
 
             {/* Bottom Inspector Bar */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl px-4 py-3 shadow-sm text-xs text-[var(--text-muted)]">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-(--surface) border border-(--border) rounded-xl px-4 py-3 shadow-sm text-xs text-(--text-muted)">
               <div className="flex flex-wrap items-center gap-3 font-mono">
-                <span className="font-bold text-sm text-[var(--text)]">
+                <span className="font-bold text-sm text-(--text)">
                   {state.record.width} × {state.record.height}
-                  <span className="text-[10px] font-normal text-[var(--text-muted)] ml-1">px</span>
+                  <span className="text-[10px] font-normal text-(--text-muted) ml-1">px</span>
                 </span>
                 <span>·</span>
                 <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 font-semibold">
@@ -515,7 +515,7 @@ export default function CapturePage() {
                 <span>·</span>
                 <span>{formatFileSize(state.record.dataUrl)}</span>
                 <span>·</span>
-                <span className="truncate max-w-[200px]" title={state.record.filename}>
+                <span className="truncate max-w-xs" title={state.record.filename}>
                   {state.record.filename}
                 </span>
               </div>
@@ -530,10 +530,10 @@ export default function CapturePage() {
       </main>
 
       {/* Studio Footer */}
-      <footer className="border-t border-[var(--border)] py-4 px-6 text-center bg-[var(--surface)]">
-        <p className="text-xs text-[var(--text-muted)]">
+      <footer className="border-t border-(--border) py-4 px-6 text-center bg-(--surface)">
+        <p className="text-xs text-(--text-muted)">
           FullPagePrint Studio · Zero server uploads · Pure client-side privacy ·{" "}
-          <Link href="/privacy" className="text-[var(--text)] hover:underline font-medium">
+          <Link href="/privacy" className="text-(--text) hover:underline font-medium">
             Privacy Policy
           </Link>
         </p>

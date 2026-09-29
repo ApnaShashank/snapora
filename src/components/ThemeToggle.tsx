@@ -28,13 +28,13 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
 
   // Avoid flash while hydrating
   if (!mounted) {
-    return <div className={`w-9 h-9 rounded-xl border border-[var(--border)] bg-[var(--surface)] ${className}`} />;
+    return <div className={`w-9 h-9 rounded-xl border border-(--border) bg-(--surface) ${className}`} />;
   }
 
   return (
     <button
       onClick={toggleTheme}
-      className={`relative flex items-center justify-center w-9 h-9 rounded-xl border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] hover:border-[var(--border-strong)] text-[var(--text-muted)] hover:text-[var(--text)] transition-all duration-150 active:scale-95 ${className}`}
+      className={`relative flex items-center justify-center w-9 h-9 rounded-xl border border-(--border) bg-(--surface) hover:bg-(--surface-hover) hover:border-(--border-strong) text-(--text-muted) hover:text-(--text) transition-all duration-150 active:scale-95 ${className}`}
       title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
       aria-label="Toggle theme"
     >
