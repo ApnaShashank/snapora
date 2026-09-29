@@ -75,7 +75,10 @@ chrome.commands.onCommand.addListener(async (command) => {
   if (!tab?.id || !tab.url) return;
 
   if (isRestrictedUrl(tab.url)) {
-    await notifyTab(tab.id, 'Cannot capture this page – Chrome restricts screenshots here.', 'error');
+    const settings = await getSettings();
+    const cleanUrl = (settings.webAppUrl || DEFAULT_SETTINGS.webAppUrl).replace(/\/+$/, '');
+    chrome.tabs.create({ url: cleanUrl, active: true }).catch(() => {});
+    await notifyTab(tab.id, 'Opening FullPagePrint Studio for internal Chrome page ✓', 'info');
     return;
   }
 
@@ -102,22 +105,40 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         // ── Popup-initiated captures ──────────────────────────────────────────
         case 'CAPTURE_VISIBLE': {
           const tab = await getActiveTab();
-          if (tab?.id && tab.url && !isRestrictedUrl(tab.url)) await initiateVisible(tab);
-          else if (tab?.id) await notifyTab(tab.id, 'Cannot capture this page.', 'error');
+          if (tab?.id && tab.url && !isRestrictedUrl(tab.url)) {
+            await initiateVisible(tab);
+          } else if (tab?.id) {
+            const settings = await getSettings();
+            const cleanUrl = (settings.webAppUrl || DEFAULT_SETTINGS.webAppUrl).replace(/\/+$/, '');
+            chrome.tabs.create({ url: cleanUrl, active: true }).catch(() => {});
+            await notifyTab(tab.id, 'Opening FullPagePrint Studio for internal Chrome page ✓', 'info');
+          }
           sendResponse({ ok: true });
           break;
         }
         case 'CAPTURE_FULLPAGE': {
           const tab = await getActiveTab();
-          if (tab?.id && tab.url && !isRestrictedUrl(tab.url)) await initiateFullPage(tab);
-          else if (tab?.id) await notifyTab(tab.id, 'Cannot capture this page.', 'error');
+          if (tab?.id && tab.url && !isRestrictedUrl(tab.url)) {
+            await initiateFullPage(tab);
+          } else if (tab?.id) {
+            const settings = await getSettings();
+            const cleanUrl = (settings.webAppUrl || DEFAULT_SETTINGS.webAppUrl).replace(/\/+$/, '');
+            chrome.tabs.create({ url: cleanUrl, active: true }).catch(() => {});
+            await notifyTab(tab.id, 'Opening FullPagePrint Studio for internal Chrome page ✓', 'info');
+          }
           sendResponse({ ok: true });
           break;
         }
         case 'CAPTURE_SELECTION': {
           const tab = await getActiveTab();
-          if (tab?.id && tab.url && !isRestrictedUrl(tab.url)) await initiateSelection(tab);
-          else if (tab?.id) await notifyTab(tab.id, 'Cannot capture this page.', 'error');
+          if (tab?.id && tab.url && !isRestrictedUrl(tab.url)) {
+            await initiateSelection(tab);
+          } else if (tab?.id) {
+            const settings = await getSettings();
+            const cleanUrl = (settings.webAppUrl || DEFAULT_SETTINGS.webAppUrl).replace(/\/+$/, '');
+            chrome.tabs.create({ url: cleanUrl, active: true }).catch(() => {});
+            await notifyTab(tab.id, 'Opening FullPagePrint Studio for internal Chrome page ✓', 'info');
+          }
           sendResponse({ ok: true });
           break;
         }
@@ -169,8 +190,14 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         }
         case 'FULLPAGE_CAPTURE_ERROR': {
           releaseCaptureLock();
-          if (sender.tab?.id) {
-            await notifyTab(sender.tab.id, `Full page capture failed: ${message.error}`, 'error');
+          const tabId = sender.tab?.id;
+          if (tabId) {
+            try {
+              const tab = await chrome.tabs.get(tabId);
+              console.warn('[SW] FULLPAGE_CAPTURE_ERROR received, falling back to visible screen capture');
+              await initiateVisible(tab);
+              await notifyTab(tabId, 'Full page unavailable here. Captured visible view instead ✓', 'info');
+            } catch { /* tab closed */ }
           }
           sendResponse({ ok: true });
           break;
@@ -255,7 +282,14 @@ async function initiateVisible(tab: chrome.tabs.Tab): Promise<void> {
     const dataUrl = await captureVisibleTabWithRetry(tab.windowId, { format: 'png' });
     await pipeline(dataUrl, 'visible', tabId, tab.url ?? '');
   } catch (err) {
-    await notifyTab(tabId, `Capture failed: ${String(err)}`, 'error');
+    console.warn('[SW] Primary visible capture failed, trying current window:', err);
+    try {
+      const dataUrl = await captureVisibleTabWithRetry(chrome.windows.WINDOW_ID_CURRENT, { format: 'png' });
+      await pipeline(dataUrl, 'visible', tabId, tab.url ?? '');
+    } catch (fallbackErr) {
+      console.error('[SW] All visible capture attempts failed:', fallbackErr);
+      await notifyTab(tabId, 'Screen capture unavailable on this page.', 'error');
+    }
   } finally {
     releaseCaptureLock();
   }
@@ -268,7 +302,9 @@ async function visibleAndCrop(tab: chrome.tabs.Tab, rect: SelectionRect): Promis
     const cropped = await cropViaOffscreen(dataUrl, rect);
     await pipeline(cropped, 'selection', tabId, tab.url ?? '');
   } catch (err) {
-    await notifyTab(tabId, `Selection capture failed: ${String(err)}`, 'error');
+    console.warn('[SW] visibleAndCrop failed, executing visible screen fallback:', err);
+    await initiateVisible(tab);
+    await notifyTab(tabId, 'Crop unavailable. Captured visible view instead ✓', 'info');
   } finally {
     releaseCaptureLock();
   }
@@ -280,14 +316,16 @@ async function initiateFullPage(tab: chrome.tabs.Tab): Promise<void> {
   try {
     // Inject fullpage content script
     await chrome.scripting.executeScript({ target: { tabId }, files: ['content/fullpage.js'] });
-    // Brief settle to ensure message listener in injected script is ready
+    // Settle delay
     await new Promise((r) => setTimeout(r, 60));
     // Trigger it
     await chrome.tabs.sendMessage(tabId, { type: 'CAPTURE_FULLPAGE' } as ExtensionMessage);
     // Pipeline completes when FULLPAGE_CAPTURE_DONE or FULLPAGE_CAPTURE_ERROR arrives
   } catch (err) {
     releaseCaptureLock();
-    await notifyTab(tabId, `Full page capture failed: ${String(err)}`, 'error');
+    console.warn('[SW] initiateFullPage failed, falling back to visible screen capture:', err);
+    await initiateVisible(tab);
+    await notifyTab(tabId, 'Full page unavailable here. Captured visible view instead ✓', 'info');
   }
 }
 
@@ -314,7 +352,12 @@ async function finalizeFullPage(
 
     await pipeline(dataUrl, 'fullpage', tabId, pageUrl, settings);
   } catch (err) {
-    await notifyTab(tabId, `Full page stitch failed: ${String(err)}`, 'error');
+    console.warn('[SW] Full page stitch failed, falling back to visible screen capture:', err);
+    try {
+      const tab = await chrome.tabs.get(tabId);
+      await initiateVisible(tab);
+      await notifyTab(tabId, 'Full page stitch failed. Captured visible view instead ✓', 'info');
+    } catch { /* tab closed */ }
   } finally {
     releaseCaptureLock();
   }
@@ -328,8 +371,32 @@ async function initiateSelection(tab: chrome.tabs.Tab): Promise<void> {
     await chrome.tabs.sendMessage(tabId, { type: 'CAPTURE_SELECTION' } as ExtensionMessage);
   } catch (err) {
     releaseCaptureLock();
-    await notifyTab(tabId, `Selection failed to start: ${String(err)}`, 'error');
+    console.warn('[SW] initiateSelection failed, falling back to visible screen capture:', err);
+    await initiateVisible(tab);
+    await notifyTab(tabId, 'Selection overlay unavailable. Captured visible view instead ✓', 'info');
   }
+}
+
+// ─── Multi-Tier Clipboard Copy Fallback ──────────────────────────────────────
+
+async function copyToClipboardWithFallback(tabId: number, dataUrl: string): Promise<boolean> {
+  // Tier 1: Active tab script copy
+  const tabOk = await copyViaActiveTab(tabId, dataUrl);
+  if (tabOk) return true;
+
+  // Tier 2: Offscreen document copy
+  try {
+    await ensureOffscreen();
+    const res = await chrome.runtime.sendMessage({
+      type: 'COPY_TO_CLIPBOARD',
+      dataUrl,
+    }) as { success?: boolean };
+    if (res?.success) return true;
+  } catch (err) {
+    console.warn('[SW] Offscreen clipboard copy failed:', err);
+  }
+
+  return false;
 }
 
 // ─── Pipeline ────────────────────────────────────────────────────────────────
@@ -369,13 +436,17 @@ async function pipeline(
     if (oldestKey) recentCaptures.delete(oldestKey);
   }
 
-  // 2. Fire Auto-Copy IMMEDIATELY in active tab before focus changes
+  // 2. Fire Auto-Copy with Multi-Tier Fallbacks
   if (settings.autoCopy) {
-    const ok = await copyViaActiveTab(tabId, finalDataUrl);
-    if (ok) {
+    const copied = await copyToClipboardWithFallback(tabId, finalDataUrl);
+    if (copied) {
       notifyTab(tabId, 'Screenshot copied to clipboard ✓', 'success').catch(() => {});
     } else {
-      notifyTab(tabId, 'Screenshot captured ✓', 'info').catch(() => {});
+      // Fallback: Trigger download if clipboard is blocked so file is preserved!
+      chrome.downloads.download({
+        url: finalDataUrl, filename, saveAs: false, conflictAction: 'uniquify',
+      }).catch(() => {});
+      notifyTab(tabId, 'Screenshot saved to downloads ✓', 'info').catch(() => {});
     }
   } else {
     notifyTab(tabId, 'Screenshot captured ✓', 'success').catch(() => {});
@@ -388,7 +459,7 @@ async function pipeline(
     })
   ];
 
-  if (settings.autoDownload) {
+  if (settings.autoDownload && !settings.autoCopy) {
     asyncTasks.push(
       chrome.downloads.download({
         url: finalDataUrl, filename, saveAs: false, conflictAction: 'uniquify',

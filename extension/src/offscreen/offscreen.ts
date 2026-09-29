@@ -36,6 +36,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           sendResponse({ dataUrl });
           break;
         }
+        case 'COPY_TO_CLIPBOARD': {
+          try {
+            const blob = dataUrlToBlob(message.dataUrl as string);
+            const item = new ClipboardItem({ [blob.type || 'image/png']: blob });
+            await navigator.clipboard.write([item]);
+            sendResponse({ success: true });
+          } catch (err) {
+            sendResponse({ success: false, error: String(err) });
+          }
+          break;
+        }
         case 'GET_IMAGE_DIMENSIONS': {
           const dims = await getImageDimensions(message.dataUrl as string);
           sendResponse(dims);
