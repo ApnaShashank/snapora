@@ -24,20 +24,28 @@ if (!win.__fullpageListenerReady) {
   chrome.runtime.onMessage.addListener(onMessage);
 }
 
+let lastFullpageStart = 0;
+
 function onMessage(
   message: ExtensionMessage,
   _sender: chrome.runtime.MessageSender,
   sendResponse: (response: unknown) => void
 ): boolean {
   if (message.type === 'CAPTURE_FULLPAGE') {
-    if (win.__fullpageCapturing) {
-      sendResponse({ ok: false, error: 'Capture already in progress' });
-      return false;
+    const now = Date.now();
+    // Force reset capturing state if > 3s since last request to prevent lockups
+    if (win.__fullpageCapturing && now - lastFullpageStart > 3000) {
+      win.__fullpageCapturing = false;
     }
+
+    win.__fullpageCapturing = true;
+    lastFullpageStart = now;
+
     // Acknowledge immediately to prevent port closed / timeout errors
     sendResponse({ ok: true });
 
     captureFullPage().catch((err) => {
+      win.__fullpageCapturing = false;
       chrome.runtime.sendMessage({
         type: 'FULLPAGE_CAPTURE_ERROR',
         error: String(err),
@@ -132,6 +140,12 @@ async function captureFullPage(): Promise<void> {
       chunkHeight: chunkHeightPx,
       lastChunkHeight: lastChunkHeightPx,
       yOffsets,
+    } as ExtensionMessage);
+  } catch (err) {
+    win.__fullpageCapturing = false;
+    chrome.runtime.sendMessage({
+      type: 'FULLPAGE_CAPTURE_ERROR',
+      error: String(err),
     } as ExtensionMessage);
   } finally {
     setElementsVisibility(fixedElements, 'visible');

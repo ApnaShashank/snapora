@@ -26,24 +26,28 @@ import { generateCaptureId, captureStorageKey, buildFilename } from '../shared/m
 // ─── State ──────────────────────────────────────────────────────────────────
 
 let isCapturing = false;
+let lastCaptureTime = 0;
 let captureTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
 let offscreenCreating: Promise<void> | null = null;
 const recentCaptures = new Map<string, CaptureRecord>();
 
 function startCaptureLock(): boolean {
-  if (isCapturing) {
+  const now = Date.now();
+  // Force reset stale lock if 2.5s passed since last capture start to ensure rapid re-clicks work seamlessly
+  if (isCapturing && now - lastCaptureTime > 2500) {
+    console.warn('[Capture] Auto-releasing stale lock for consecutive capture request');
+    isCapturing = false;
+  } else if (isCapturing) {
     console.warn('[Capture] Already capturing, ignoring duplicate request');
     return false;
   }
   isCapturing = true;
+  lastCaptureTime = now;
   if (captureTimeoutTimer) clearTimeout(captureTimeoutTimer);
-  // Auto-release after 45 seconds max so user is never locked out
+  // Release lock after 10 seconds max
   captureTimeoutTimer = setTimeout(() => {
-    if (isCapturing) {
-      console.warn('[Capture] Capture lock timed out, auto-releasing');
-      isCapturing = false;
-    }
-  }, 45000);
+    isCapturing = false;
+  }, 10000);
   return true;
 }
 
@@ -250,7 +254,7 @@ async function captureVisibleTabWithRetry(
   windowId: number,
   options: chrome.tabs.CaptureVisibleTabOptions = { format: 'png' },
   maxRetries = 4,
-  initialDelayMs = 500
+  initialDelayMs = 120
 ): Promise<string> {
   let attempt = 0;
   while (attempt <= maxRetries) {
@@ -317,15 +321,18 @@ async function initiateFullPage(tab: chrome.tabs.Tab): Promise<void> {
     // Inject fullpage content script
     await chrome.scripting.executeScript({ target: { tabId }, files: ['content/fullpage.js'] });
     // Settle delay
-    await new Promise((r) => setTimeout(r, 60));
+    await new Promise((r) => setTimeout(r, 40));
     // Trigger it
-    await chrome.tabs.sendMessage(tabId, { type: 'CAPTURE_FULLPAGE' } as ExtensionMessage);
-    // Pipeline completes when FULLPAGE_CAPTURE_DONE or FULLPAGE_CAPTURE_ERROR arrives
+    const res = await chrome.tabs.sendMessage(tabId, { type: 'CAPTURE_FULLPAGE' } as ExtensionMessage) as { ok?: boolean; error?: string };
+    if (res?.ok === false) {
+      console.warn('[SW] Full page message returned ok:false, executing visible screen fallback');
+      releaseCaptureLock();
+      await initiateVisible(tab);
+    }
   } catch (err) {
     releaseCaptureLock();
     console.warn('[SW] initiateFullPage failed, falling back to visible screen capture:', err);
     await initiateVisible(tab);
-    await notifyTab(tabId, 'Full page unavailable here. Captured visible view instead ✓', 'info');
   }
 }
 
