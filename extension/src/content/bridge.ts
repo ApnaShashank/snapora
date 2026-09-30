@@ -1,82 +1,79 @@
 /**
  * Content Script: Web App Bridge
  *
- * Injected into the Capture web app pages.
- * Facilitates two-way communication between the web app and extension:
- * 1. Automatically fetches capture data from service worker on load and posts to window
- * 2. Listens for 'REQUEST_CAPTURE_DATA' from the page and replies immediately
+ * Injected into FullPagePrint web application routes at document_start.
+ * Facilitates instant two-way handshake between web app and extension.
  */
 
-(async () => {
-  const match = window.location.pathname.match(/\/capture\/([a-f0-9]{32})/);
-  if (!match) return;
+(() => {
+  function getCaptureIdFromUrl(): string | null {
+    const match = window.location.pathname.match(/\/capture\/([a-f0-9]{32})/);
+    return match ? match[1] : null;
+  }
 
-  const captureId = match[1];
-  let cachedRecord: unknown = null;
-
-  async function fetchAndPost(): Promise<void> {
+  async function fetchAndPost(id: string): Promise<void> {
     try {
       const response = await chrome.runtime.sendMessage({
         type: 'GET_CAPTURE',
-        id: captureId,
+        id,
       });
-
-      if (response?.record) {
-        cachedRecord = response.record;
-      }
 
       window.postMessage(
         {
           source: 'capture-extension',
           type: 'CAPTURE_BRIDGE_DATA',
-          record: response?.record ?? cachedRecord ?? null,
+          record: response?.record ?? null,
           expired: response?.expired === true,
         },
         '*'
       );
     } catch (err) {
-      console.warn('[Capture Bridge] Error fetching capture:', err);
-      if (cachedRecord) {
-        window.postMessage(
-          {
-            source: 'capture-extension',
-            type: 'CAPTURE_BRIDGE_DATA',
-            record: cachedRecord,
-            expired: false,
-          },
-          '*'
-        );
-      }
+      console.warn('[Bridge] Error fetching capture:', err);
     }
   }
 
-  // 1. Listen for requests from the web app page (two-way handshake)
-  window.addEventListener('message', (event) => {
-    if (
-      event.data?.source === 'capture-webapp' &&
-      event.data?.type === 'REQUEST_CAPTURE_DATA'
-    ) {
-      if (cachedRecord) {
+  // 1. Listen for requests from the web app (PING_EXTENSION and REQUEST_CAPTURE_DATA)
+  window.addEventListener('message', async (event) => {
+    if (event.data?.source === 'capture-webapp') {
+      if (event.data?.type === 'PING_EXTENSION') {
         window.postMessage(
           {
             source: 'capture-extension',
-            type: 'CAPTURE_BRIDGE_DATA',
-            record: cachedRecord,
-            expired: false,
+            type: 'EXTENSION_PONG',
+            version: '1.2.0',
+            installed: true,
           },
           '*'
         );
-      } else {
-        fetchAndPost();
+        return;
+      }
+
+      if (event.data?.type === 'REQUEST_CAPTURE_DATA') {
+        const id = event.data?.id || getCaptureIdFromUrl();
+        if (id) {
+          await fetchAndPost(id);
+        }
       }
     }
   });
 
-  // 2. Fetch immediately
-  await fetchAndPost();
+  // 2. Announce presence on load
+  window.postMessage(
+    {
+      source: 'capture-extension',
+      type: 'EXTENSION_PONG',
+      version: '1.2.0',
+      installed: true,
+    },
+    '*'
+  );
 
-  // 3. Staggered retries in case React mounts after initial load
-  setTimeout(fetchAndPost, 150);
-  setTimeout(fetchAndPost, 500);
-  setTimeout(fetchAndPost, 1200);
+  // 3. Immediate fetch if on capture page
+  const initialId = getCaptureIdFromUrl();
+  if (initialId) {
+    fetchAndPost(initialId);
+    setTimeout(() => fetchAndPost(initialId), 100);
+    setTimeout(() => fetchAndPost(initialId), 400);
+    setTimeout(() => fetchAndPost(initialId), 1000);
+  }
 })();

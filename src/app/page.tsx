@@ -265,9 +265,9 @@ export default function HomePage() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10">
               <button
                 onClick={() => setInstallOpen(true)}
-                className="btn text-sm py-3 px-6 w-full sm:w-auto shadow-md bg-(--icon-bg) text-(--banner-text) border-2 border-(--icon-border) font-bold hover:opacity-95 text-(--icon-fg)"
+                className="btn text-sm py-3 px-6 w-full sm:w-auto shadow-md bg-(--icon-bg) text-(--banner-text) border-2 border-(--icon-border) font-bold hover:opacity-95"
               >
-                <Download className="w-4 h-4 text-(--icon-fg)" /> Download Extension (.zip)
+                <Download className="w-4 h-4 text-(--banner-text)" /> Download Extension (.zip)
               </button>
               <a
                 href="#modes"

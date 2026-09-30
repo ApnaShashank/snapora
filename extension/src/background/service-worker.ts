@@ -167,16 +167,23 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender, sendRes
         // ── Full page chunk capture request from content script ──────────────
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         case 'CAPTURE_VIEWPORT_CHUNK' as any: {
-          const windowId = sender.tab?.windowId;
+          let windowId = sender.tab?.windowId;
           if (windowId === undefined) {
-            sendResponse({ error: 'No active tab window' });
-            break;
+            const [activeTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+            windowId = activeTab?.windowId;
           }
           try {
-            const dataUrl = await captureVisibleTabWithRetry(windowId, { format: 'png' });
+            const targetWin = windowId !== undefined ? windowId : chrome.windows.WINDOW_ID_CURRENT;
+            const dataUrl = await captureVisibleTabWithRetry(targetWin, { format: 'png' });
             sendResponse({ dataUrl });
           } catch (err) {
-            sendResponse({ error: String(err) });
+            console.warn('[SW] Chunk capture failed with windowId, retrying with current window:', err);
+            try {
+              const dataUrl = await captureVisibleTabWithRetry(chrome.windows.WINDOW_ID_CURRENT, { format: 'png' });
+              sendResponse({ dataUrl });
+            } catch (fallbackErr) {
+              sendResponse({ error: String(fallbackErr) });
+            }
           }
           break;
         }

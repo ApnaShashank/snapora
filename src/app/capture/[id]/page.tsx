@@ -155,44 +155,45 @@ export default function CapturePage() {
     const handleMessage = (event: MessageEvent) => {
       if (
         event.source !== window ||
-        event.data?.source !== "capture-extension" ||
-        event.data?.type !== "CAPTURE_BRIDGE_DATA"
+        event.data?.source !== "capture-extension"
       )
         return;
 
-      const { record, error, expired } = event.data;
+      if (event.data?.type === "CAPTURE_BRIDGE_DATA") {
+        const { record, error, expired } = event.data;
 
-      if (record) {
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        if (pollInterval) clearInterval(pollInterval);
-        setState({ status: "loaded", record });
-        return;
-      }
+        if (record) {
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          if (pollInterval) clearInterval(pollInterval);
+          setState({ status: "loaded", record });
+          return;
+        }
 
-      if (expired) {
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        if (pollInterval) clearInterval(pollInterval);
-        setState({ status: "expired" });
-        return;
-      }
+        if (expired) {
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          if (pollInterval) clearInterval(pollInterval);
+          setState({ status: "expired" });
+          return;
+        }
 
-      if (error) {
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        if (pollInterval) clearInterval(pollInterval);
-        setState({ status: "error", message: error });
-        return;
+        if (error) {
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          if (pollInterval) clearInterval(pollInterval);
+          setState({ status: "error", message: error });
+          return;
+        }
       }
     };
 
     window.addEventListener("message", handleMessage);
 
     // Initial request to bridge script
-    window.postMessage({ source: "capture-webapp", type: "REQUEST_CAPTURE_DATA" }, "*");
+    window.postMessage({ source: "capture-webapp", type: "REQUEST_CAPTURE_DATA", id: captureId }, "*");
 
-    // Staggered polling every 200ms for up to 6 seconds to guarantee handshake
+    // Staggered polling every 150ms for up to 10 seconds to guarantee handshake
     pollInterval = setInterval(() => {
-      window.postMessage({ source: "capture-webapp", type: "REQUEST_CAPTURE_DATA" }, "*");
-    }, 200);
+      window.postMessage({ source: "capture-webapp", type: "REQUEST_CAPTURE_DATA", id: captureId }, "*");
+    }, 150);
 
     timeoutRef.current = setTimeout(() => {
       if (pollInterval) clearInterval(pollInterval);
@@ -200,7 +201,7 @@ export default function CapturePage() {
         if (s.status === "loading") return { status: "no-extension" };
         return s;
       });
-    }, 6000);
+    }, 10000);
 
     return () => {
       window.removeEventListener("message", handleMessage);
@@ -457,7 +458,7 @@ export default function CapturePage() {
                 >
                   <ZoomOut className="w-3.5 h-3.5" />
                 </button>
-                <span className="text-xs font-mono font-medium px-2 py-1 rounded bg-(--surface-hover) border border-(--border) min-w-[50px] text-center">
+                <span className="text-xs font-mono font-medium px-2 py-1 rounded bg-(--surface-hover) border border-(--border) min-w-12.5 text-center">
                   {fitMode === "fit" ? "Fit" : `${zoomLevel}%`}
                 </span>
                 <button
@@ -480,7 +481,7 @@ export default function CapturePage() {
             </div>
 
             {/* The Main High-Res Canvas */}
-            <div className="flex-1 min-h-[500px] max-h-[72vh] overflow-auto rounded-2xl border border-(--border) bg-(--surface) relative p-4 flex items-center justify-center shadow-inner pattern-grid">
+            <div className="flex-1 min-h-125 max-h-[72vh] overflow-auto rounded-2xl border border-(--border) bg-(--surface) relative p-4 flex items-center justify-center shadow-inner pattern-grid">
               <div
                 className="transition-transform duration-150 origin-top flex items-center justify-center"
                 style={{

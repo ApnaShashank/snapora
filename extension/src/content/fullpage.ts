@@ -71,12 +71,15 @@ async function captureFullPage(): Promise<void> {
   htmlEl.style.setProperty('scroll-behavior', 'auto', 'important');
   bodyEl.style.setProperty('scroll-behavior', 'auto', 'important');
 
-  const totalHeight = Math.max(
-    document.body.scrollHeight,
-    document.documentElement.scrollHeight,
-    document.body.offsetHeight,
-    document.documentElement.offsetHeight,
-    document.documentElement.clientHeight
+  const totalHeight = Math.min(
+    Math.max(
+      document.body.scrollHeight,
+      document.documentElement.scrollHeight,
+      document.body.offsetHeight,
+      document.documentElement.offsetHeight,
+      document.documentElement.clientHeight
+    ),
+    16384
   );
   const viewportHeight = window.innerHeight;
   const viewportWidth = window.innerWidth;
@@ -157,22 +160,32 @@ async function captureFullPage(): Promise<void> {
   }
 }
 
-function captureCurrentViewport(): Promise<string> {
-  return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { type: 'CAPTURE_VIEWPORT_CHUNK' as any },
-      (response: { dataUrl?: string; error?: string }) => {
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
-        } else if (response?.dataUrl) {
-          resolve(response.dataUrl);
-        } else {
-          reject(new Error(response?.error ?? 'No data URL'));
-        }
-      }
-    );
-  });
+async function captureCurrentViewport(): Promise<string> {
+  let attempts = 0;
+  while (attempts < 3) {
+    try {
+      return await new Promise<string>((resolve, reject) => {
+        chrome.runtime.sendMessage(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          { type: 'CAPTURE_VIEWPORT_CHUNK' as any },
+          (response: { dataUrl?: string; error?: string }) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+            } else if (response?.dataUrl) {
+              resolve(response.dataUrl);
+            } else {
+              reject(new Error(response?.error ?? 'No data URL'));
+            }
+          }
+        );
+      });
+    } catch (err) {
+      attempts++;
+      if (attempts >= 3) throw err;
+      await sleep(100);
+    }
+  }
+  throw new Error('Viewport chunk capture failed after retries');
 }
 
 function getFixedStickyElements(): HTMLElement[] {

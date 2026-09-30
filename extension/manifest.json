@@ -62,13 +62,16 @@
   "content_scripts": [
     {
       "matches": [
-        "http://localhost:3000/capture/*",
-        "http://localhost:3001/capture/*",
-        "https://fullpageprint.vercel.app/capture/*",
-        "https://snapora.vercel.app/capture/*"
+        "http://localhost/*",
+        "http://localhost:*/*",
+        "http://127.0.0.1/*",
+        "http://127.0.0.1:*/*",
+        "https://snapora.vercel.app/*",
+        "https://fullpageprint.vercel.app/*",
+        "https://*.vercel.app/*"
       ],
       "js": ["content/bridge.js"],
-      "run_at": "document_idle"
+      "run_at": "document_start"
     }
   ],
   "web_accessible_resources": [
